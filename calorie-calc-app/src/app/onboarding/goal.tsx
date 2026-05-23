@@ -2,6 +2,7 @@ import { router } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
 import { getNutritionGoal, storeNutritionGoal } from '@/api/goals'
 import { getProfile } from '@/api/profile'
@@ -10,7 +11,7 @@ import { AppInput } from '@/components/ui/AppInput'
 import { Screen } from '@/components/ui/Screen'
 import { colors } from '@/constants/colors'
 import type { GoalType } from '@/types/goals'
-import type { UserProfile } from '@/types/profile'
+import type { ActivityLevel, UserProfile } from '@/types/profile'
 
 type GoalOption = {
   type: GoalType
@@ -22,7 +23,7 @@ const goalOptions: GoalOption[] = [
   {
     type: 'lose',
     title: 'Lose weight',
-    description: 'Create a calorie deficit based on your profile and target.'
+    description: 'Create a calorie deficit based on your profile and selected weekly rate.'
   },
   {
     type: 'maintain',
@@ -36,6 +37,8 @@ const goalOptions: GoalOption[] = [
   }
 ]
 
+const rateOptions = ['0.25', '0.5', '0.75', '1']
+
 export default function OnboardingGoalScreen() {
   const submittingRef = useRef(false)
 
@@ -44,13 +47,20 @@ export default function OnboardingGoalScreen() {
   const [formError, setFormError] = useState<string | null>(null)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [activityLevels, setActivityLevels] = useState<ActivityLevel[]>([])
+  const [activityLevelId, setActivityLevelId] = useState<number | null>(null)
+
   const [goalType, setGoalType] = useState<GoalType>('lose')
-  const [targetWeightKg, setTargetWeightKg] = useState('')
-  const [targetDate, setTargetDate] = useState('')
+  const [targetRateKgPerWeek, setTargetRateKgPerWeek] = useState('0.5')
 
   const selectedGoal = useMemo(
     () => goalOptions.find((option) => option.type === goalType),
     [goalType]
+  )
+
+  const selectedActivityLevel = useMemo(
+    () => activityLevels.find((level) => level.id === activityLevelId),
+    [activityLevels, activityLevelId]
   )
 
   useEffect(() => {
@@ -61,29 +71,35 @@ export default function OnboardingGoalScreen() {
     try {
       setLoadingInitialData(true)
 
-      const [profileResponse, goalResponse] = await Promise.all([getProfile(), getNutritionGoal()])
+      const [profileResponse, activityResponse, goalResponse] = await Promise.all([
+        getProfile(),
+        getActivityLevels(),
+        getNutritionGoal()
+      ])
 
       const loadedProfile = profileResponse.data.profile
-      const existingGoal = goalResponse.data.nutrition_goal
+      const loadedActivityLevels = activityResponse.data.activity_levels
+      const existingGoal = goalResponse.data.active_goal
 
       setProfile(loadedProfile)
+      setActivityLevels(loadedActivityLevels)
+
+      const firstActivityLevelId =
+        loadedActivityLevels.length > 0 ? loadedActivityLevels[0].id : null
 
       if (existingGoal) {
         setGoalType(existingGoal.goal_type)
-        setTargetWeightKg(
-          existingGoal.target_weight_kg
-            ? String(existingGoal.target_weight_kg)
-            : loadedProfile?.target_weight_kg
-              ? String(loadedProfile.target_weight_kg)
-              : ''
+        setTargetRateKgPerWeek(
+          existingGoal.target_rate_kg_per_week
+            ? String(existingGoal.target_rate_kg_per_week)
+            : '0.5'
         )
-        setTargetDate(existingGoal.target_date ?? '')
+
+        setActivityLevelId(existingGoal.activity_level?.id ?? firstActivityLevelId)
         return
       }
 
-      if (loadedProfile?.target_weight_kg) {
-        setTargetWeightKg(String(loadedProfile.target_weight_kg))
-      }
+      setActivityLevelId(firstActivityLevelId)
 
       if (
         loadedProfile?.current_weight_kg &&
@@ -120,16 +136,6 @@ export default function OnboardingGoalScreen() {
     }
   }
 
-  function toNullableNumber(value: string): number | null {
-    const cleanValue = value.replace(',', '.').trim()
-
-    if (!cleanValue) {
-      return null
-    }
-
-    return Number(cleanValue)
-  }
-
   function blurActiveElement() {
     if (typeof document === 'undefined') {
       return
@@ -142,67 +148,28 @@ export default function OnboardingGoalScreen() {
     }
   }
 
-  function getProfileActivityLevelId(profileData: UserProfile | null): number | null {
-    if (!profileData) {
-      return null
-    }
-
-    if (profileData.activity_level_id) {
-      return Number(profileData.activity_level_id)
-    }
-
-    if (profileData.activity_level?.id) {
-      return Number(profileData.activity_level.id)
-    }
-
-    return null
-  }
-
   function validateForm(): string | null {
     if (!profile) {
       return 'Please complete your profile setup first.'
     }
 
-    if (!getProfileActivityLevelId(profile)) {
-      return 'Activity level is missing. Please go back and complete your profile setup.'
+    if (!activityLevelId) {
+      return 'Please select your activity level.'
     }
 
     if (goalType !== 'maintain') {
-      const targetWeight = toNullableNumber(targetWeightKg)
+      const rate = Number(targetRateKgPerWeek.replace(',', '.').trim())
 
-      if (!targetWeight || targetWeight <= 0) {
-        return 'Target weight is required.'
+      if (!rate || rate < 0.1 || rate > 1) {
+        return 'Target rate must be between 0.10 and 1.00 kg per week.'
       }
-
-      if (
-        goalType === 'lose' &&
-        profile.current_weight_kg &&
-        targetWeight >= profile.current_weight_kg
-      ) {
-        return 'For weight loss, target weight should be lower than current weight.'
-      }
-
-      if (
-        goalType === 'gain' &&
-        profile.current_weight_kg &&
-        targetWeight <= profile.current_weight_kg
-      ) {
-        return 'For weight gain, target weight should be higher than current weight.'
-      }
-    }
-
-    if (targetDate.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate.trim())) {
-      return 'Target date must be in YYYY-MM-DD format.'
     }
 
     return null
   }
 
   async function handleSaveGoal() {
-    console.log('SAVE GOAL CLICKED')
-
     if (submittingRef.current) {
-      console.log('Goal submit blocked because request is already running.')
       return
     }
 
@@ -211,7 +178,6 @@ export default function OnboardingGoalScreen() {
     const validationError = validateForm()
 
     if (validationError) {
-      console.log('GOAL VALIDATION ERROR:', validationError)
       setFormError(validationError)
       Alert.alert('Check your goal', validationError)
       return
@@ -221,16 +187,11 @@ export default function OnboardingGoalScreen() {
       submittingRef.current = true
       setSaving(true)
 
-      const activityLevelId = getProfileActivityLevelId(profile)
-
       const payload = {
         activity_level_id: Number(activityLevelId),
         goal_type: goalType,
-        target_weight_kg:
-          goalType === 'maintain'
-            ? Number(profile?.current_weight_kg)
-            : toNullableNumber(targetWeightKg),
-        target_date: targetDate.trim() || null
+        target_rate_kg_per_week:
+          goalType === 'maintain' ? null : Number(targetRateKgPerWeek.replace(',', '.').trim())
       }
 
       console.log('GOAL PAYLOAD:', payload)
@@ -243,13 +204,7 @@ export default function OnboardingGoalScreen() {
     } catch (error) {
       if (error instanceof ApiError) {
         const firstValidationError = error.errors ? Object.values(error.errors).flat()[0] : null
-
         const message = firstValidationError ?? error.message
-
-        console.log('GOAL API ERROR:', {
-          message,
-          errors: error.errors
-        })
 
         setFormError(message)
         Alert.alert('Could not save goal', message)
@@ -281,7 +236,8 @@ export default function OnboardingGoalScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Goal setup</Text>
         <Text style={styles.subtitle}>
-          Choose your goal so we can calculate your daily calorie and macro targets.
+          Choose your goal, activity level and weekly rate so we can calculate your daily calorie
+          and macro targets.
         </Text>
       </View>
 
@@ -291,7 +247,6 @@ export default function OnboardingGoalScreen() {
 
           <View style={styles.profileRow}>
             <Text style={styles.profileText}>Current weight: {profile.current_weight_kg} kg</Text>
-
             <Text style={styles.profileText}>Target weight: {profile.target_weight_kg} kg</Text>
           </View>
         </View>
@@ -321,7 +276,13 @@ export default function OnboardingGoalScreen() {
               <Pressable
                 key={option.type}
                 style={[styles.goalCard, selected ? styles.goalSelected : null]}
-                onPress={() => setGoalType(option.type)}
+                onPress={() => {
+                  setGoalType(option.type)
+
+                  if (option.type === 'maintain') {
+                    setTargetRateKgPerWeek('0.5')
+                  }
+                }}
               >
                 <Text style={[styles.goalTitle, selected ? styles.goalTitleSelected : null]}>
                   {option.title}
@@ -337,37 +298,108 @@ export default function OnboardingGoalScreen() {
           })}
         </View>
       </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Activity level</Text>
+
+        <View style={styles.activityList}>
+          {activityLevels.map((level) => {
+            const selected = level.id === activityLevelId
+
+            return (
+              <Pressable
+                key={level.id}
+                style={[styles.activityCard, selected ? styles.activitySelected : null]}
+                onPress={() => setActivityLevelId(level.id)}
+              >
+                <View style={styles.activityCardTop}>
+                  <Text
+                    style={[styles.activityName, selected ? styles.activityNameSelected : null]}
+                  >
+                    {level.name}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.activityMultiplier,
+                      selected ? styles.activityMultiplierSelected : null
+                    ]}
+                  >
+                    ×{level.multiplier}
+                  </Text>
+                </View>
+
+                {level.description ? (
+                  <Text
+                    style={[
+                      styles.activityDescription,
+                      selected ? styles.activityDescriptionSelected : null
+                    ]}
+                  >
+                    {level.description}
+                  </Text>
+                ) : null}
+              </Pressable>
+            )
+          })}
+        </View>
+
+        {selectedActivityLevel ? (
+          <Text style={styles.selectedHint}>Selected: {selectedActivityLevel.name}</Text>
+        ) : null}
+      </View>
+
       {formError ? (
         <View style={styles.errorCard}>
           <Text style={styles.errorTitle}>Please check your goal</Text>
           <Text style={styles.errorText}>{formError}</Text>
         </View>
       ) : null}
+
       <View style={styles.form}>
         <AppInput
-          label="Target weight"
-          value={targetWeightKg}
-          onChangeText={setTargetWeightKg}
-          placeholder="Target weight in kg"
+          label="Target rate"
+          value={targetRateKgPerWeek}
+          onChangeText={setTargetRateKgPerWeek}
+          placeholder="Example: 0.5"
           keyboardType="numeric"
           editable={goalType !== 'maintain'}
         />
 
-        <AppInput
-          label="Target date"
-          value={targetDate}
-          onChangeText={setTargetDate}
-          placeholder="YYYY-MM-DD, optional"
-          autoCapitalize="none"
-        />
+        <Text style={styles.helperText}>
+          Choose how much weight you want to lose or gain per week. A practical range is 0.10 to
+          1.00 kg/week. Maintain mode does not need a rate.
+        </Text>
+
+        {goalType !== 'maintain' ? (
+          <View style={styles.rateChips}>
+            {rateOptions.map((rate) => {
+              const selected = targetRateKgPerWeek === rate
+
+              return (
+                <Pressable
+                  key={rate}
+                  style={[styles.rateChip, selected ? styles.rateChipSelected : null]}
+                  onPress={() => setTargetRateKgPerWeek(rate)}
+                >
+                  <Text
+                    style={[styles.rateChipText, selected ? styles.rateChipTextSelected : null]}
+                  >
+                    {rate} kg/week
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        ) : null}
       </View>
 
       {selectedGoal ? (
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>{selectedGoal.title}</Text>
           <Text style={styles.infoText}>
-            The backend will calculate your BMR, TDEE, target calories, protein, carbs, and fat
-            based on your saved profile.
+            The backend will calculate your BMR, TDEE, daily calorie target, protein, carbs and fat
+            based on your saved profile, selected activity level and weekly rate.
           </Text>
         </View>
       ) : null}
@@ -483,9 +515,89 @@ const styles = StyleSheet.create({
   goalDescriptionSelected: {
     color: '#DCFCE7'
   },
+  activityList: {
+    gap: 12
+  },
+  activityCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 8
+  },
+  activitySelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  activityCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  activityName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text
+  },
+  activityNameSelected: {
+    color: '#FFFFFF'
+  },
+  activityMultiplier: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.primary
+  },
+  activityMultiplierSelected: {
+    color: '#FFFFFF'
+  },
+  activityDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted
+  },
+  activityDescriptionSelected: {
+    color: '#DCFCE7'
+  },
+  selectedHint: {
+    fontSize: 13,
+    color: colors.muted
+  },
   form: {
-    gap: 16,
+    gap: 12,
     marginBottom: 18
+  },
+  helperText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: colors.muted
+  },
+  rateChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 4
+  },
+  rateChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    paddingHorizontal: 14,
+    paddingVertical: 9
+  },
+  rateChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  rateChipText: {
+    color: colors.text,
+    fontWeight: '700',
+    fontSize: 13
+  },
+  rateChipTextSelected: {
+    color: '#FFFFFF'
   },
   infoCard: {
     backgroundColor: colors.card,

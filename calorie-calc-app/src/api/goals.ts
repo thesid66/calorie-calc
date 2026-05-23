@@ -3,12 +3,12 @@ import type { NutritionGoal, StoreNutritionGoalPayload } from '@/types/goals'
 
 export function getNutritionGoal() {
   return apiClient.get<{
-    nutrition_goal: NutritionGoal | null
+    active_goal: NutritionGoal | null
   }>('/nutrition-goal')
 }
 
 export function storeNutritionGoal(payload: StoreNutritionGoalPayload) {
   return apiClient.post<{
-    nutrition_goal: NutritionGoal
+    active_goal: NutritionGoal
   }>('/nutrition-goal', payload)
 }
