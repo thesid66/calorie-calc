@@ -1,0 +1,28 @@
+{
+  "name": "calorie-calc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently -n API,EXPO -c green,cyan \"npm run dev:api\" \"npm run dev:app\"",
+    "dev:api": "cd calorie-calc-api && php artisan serve --host=0.0.0.0 --port=8000",
+    "dev:app": "cd calorie-calc-app && npx expo start",
+    "dev:web": "concurrently -n API,EXPO -c green,cyan \"npm run dev:api\" \"npm run dev:app:web\"",
+    "dev:app:web": "cd calorie-calc-app && npx expo start --web"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thesid66/calorie-calc.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/thesid66/calorie-calc/issues"
+  },
+  "homepage": "https://github.com/thesid66/calorie-calc#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
