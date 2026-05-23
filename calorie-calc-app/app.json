@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Calorie Calc",
+    "slug": "calorie-calc-app",
+    "version": "1.0.0",
+    "scheme": "caloriecalc",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "experiments": {
+      "typedRoutes": true
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "edgeToEdgeEnabled": true
+    }
+  }
+}
