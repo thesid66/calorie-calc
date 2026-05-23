@@ -1,31 +1,28 @@
+import type { ActivityLevel } from '@/types/profile'
+
 export type GoalType = 'lose' | 'maintain' | 'gain'
 
 export type NutritionGoal = {
   id: number
-  user_id: number
   goal_type: GoalType
+  target_rate_kg_per_week: number | null
 
-  starting_weight_kg?: number | null
-  target_weight_kg?: number | null
-  target_date?: string | null
+  bmr: number | null
+  tdee: number | null
+  daily_calorie_target: number | null
 
-  bmr?: number | null
-  tdee?: number | null
-  target_calories?: number | null
+  protein_target_g: number | null
+  carb_target_g: number | null
+  fat_target_g: number | null
 
-  protein_g?: number | null
-  carbs_g?: number | null
-  fat_g?: number | null
+  activity_level?: ActivityLevel | null
 
-  daily_calorie_adjustment?: number | null
-
-  created_at?: string
-  updated_at?: string
+  calculated_at?: string | null
+  is_active: boolean
 }
 
 export type StoreNutritionGoalPayload = {
   activity_level_id: number
   goal_type: GoalType
-  target_weight_kg: number | null
-  target_date?: string | null
+  target_rate_kg_per_week?: number | null
 }
