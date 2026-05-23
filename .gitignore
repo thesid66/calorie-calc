@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+vendor/
+
+# environment files
+.env
+.env.*
+!.env.example
+
+# Laravel / PHP
+calorie-calc-api/storage/logs/*.log
+calorie-calc-api/bootstrap/cache/*.php
+
+# React Native / Expo
+.expo/
+dist/
+web-build/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
