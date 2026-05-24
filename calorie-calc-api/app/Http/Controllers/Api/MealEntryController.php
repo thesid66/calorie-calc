@@ -12,9 +12,9 @@ use App\Models\MealEntry;
 use App\Services\MealEntryCalculator;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
-use Illuminate\Http\Request;
 
 class MealEntryController extends Controller
 {
@@ -38,6 +38,7 @@ class MealEntryController extends Controller
             'meal_entries' => MealEntryResource::collection($mealEntries),
         ]);
     }
+
     public function show(MealEntry $mealEntry): JsonResponse
     {
         $this->ensureUserOwnsMealEntry($mealEntry);

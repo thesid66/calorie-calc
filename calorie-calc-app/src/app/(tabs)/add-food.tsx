@@ -278,16 +278,40 @@ export default function AddFoodScreen() {
       setQuickLoggingEntryId(entry.id)
 
       if (entry.food_id) {
-        await storeMealEntry({
-          entry_mode: 'food',
-          logged_for_date: loggedForDate.trim(),
-          meal_type: mealType,
-          food_id: entry.food_id,
-          food_serving_id: null,
-          quantity: entry.quantity ?? 1,
-          total_grams: entry.total_grams ?? null,
-          notes: entry.notes
-        })
+        const calculatedTotalGrams =
+          entry.total_grams ??
+          (entry.serving_grams !== null && entry.serving_grams !== undefined
+            ? Number(entry.serving_grams) * Number(entry.quantity ?? 1)
+            : null)
+
+        if (calculatedTotalGrams && calculatedTotalGrams > 0) {
+          await storeMealEntry({
+            entry_mode: 'food',
+            logged_for_date: loggedForDate.trim(),
+            meal_type: mealType,
+            food_id: entry.food_id,
+            food_serving_id: null,
+            quantity: null,
+            total_grams: calculatedTotalGrams,
+            notes: entry.notes
+          })
+        } else {
+          await storeMealEntry({
+            entry_mode: 'manual',
+            logged_for_date: loggedForDate.trim(),
+            meal_type: mealType,
+            manual_food_name: entry.food_name,
+            serving_label: entry.serving_label,
+            calories: entry.nutrition.calories,
+            protein_g: entry.nutrition.protein_g,
+            carbs_g: entry.nutrition.carbs_g,
+            fat_g: entry.nutrition.fat_g,
+            fiber_g: entry.nutrition.fiber_g,
+            sugar_g: entry.nutrition.sugar_g,
+            sodium_mg: entry.nutrition.sodium_mg,
+            notes: entry.notes
+          })
+        }
       } else {
         await storeMealEntry({
           entry_mode: 'manual',
