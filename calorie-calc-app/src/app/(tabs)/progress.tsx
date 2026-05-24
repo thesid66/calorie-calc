@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
-import { getProgressOverview } from '@/api/progress'
+import { getNutritionProgress, getProgressOverview, getWeightProgress } from '@/api/progress'
 import { deleteWeightLog, getWeightLogs, storeWeightLog } from '@/api/weightLogs'
 import {
   AppButton,
@@ -16,7 +16,11 @@ import {
   SectionHeader
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
-import type { ProgressOverview } from '@/types/progress'
+import type {
+  NutritionProgressPoint,
+  ProgressOverview,
+  WeightProgressPoint
+} from '@/types/progress'
 import type { WeightLog } from '@/types/weightLogs'
 
 type RangeOption = {
@@ -89,6 +93,34 @@ function progressPercent(value: number | null | undefined) {
   return Math.min(Math.max(Number(value), 0), 100)
 }
 
+function sampleSeries<T>(series: T[], maxPoints = 14) {
+  if (series.length <= maxPoints) {
+    return series
+  }
+
+  return Array.from({ length: maxPoints }, (_, index) => {
+    const sourceIndex = Math.round(index * ((series.length - 1) / (maxPoints - 1)))
+
+    return series[sourceIndex]
+  })
+}
+
+function getBarHeight(value: number, minValue: number, maxValue: number) {
+  if (maxValue <= minValue) {
+    return 50
+  }
+
+  const percent = ((value - minValue) / (maxValue - minValue)) * 100
+
+  return Math.min(Math.max(percent, 8), 100)
+}
+
+function formatShortDate(dateString: string) {
+  const [, month, day] = dateString.split('-')
+
+  return `${day}/${month}`
+}
+
 export default function ProgressScreen() {
   const submittingRef = useRef(false)
 
@@ -98,6 +130,8 @@ export default function ProgressScreen() {
 
   const [overview, setOverview] = useState<ProgressOverview | null>(null)
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+  const [weightSeries, setWeightSeries] = useState<WeightProgressPoint[]>([])
+  const [nutritionSeries, setNutritionSeries] = useState<NutritionProgressPoint[]>([])
 
   const [loggedOn, setLoggedOn] = useState(todayDateString())
   const [weightKg, setWeightKg] = useState('')
@@ -125,13 +159,20 @@ export default function ProgressScreen() {
     try {
       setRefreshing(true)
 
-      const [overviewResponse, weightLogsResponse] = await Promise.all([
+      const [
+        overviewResponse,
+        weightLogsResponse,
+        weightProgressResponse,
+        nutritionProgressResponse
+      ] = await Promise.all([
         getProgressOverview(range),
-        getWeightLogs(range)
+        getWeightLogs(range),
+        getWeightProgress(range),
+        getNutritionProgress(range)
       ])
 
-      setOverview(overviewResponse.data)
-      setWeightLogs(weightLogsResponse.data.weight_logs)
+      setWeightSeries(weightProgressResponse.data.series)
+      setNutritionSeries(nutritionProgressResponse.data.series)
 
       const latestLog = weightLogsResponse.data.weight_logs.at(-1)
 
@@ -327,6 +368,8 @@ export default function ProgressScreen() {
         />
       </View>
 
+      <WeightTrendCard series={weightSeries} />
+
       <AppCard>
         <SectionHeader
           title="Log weight"
@@ -368,6 +411,11 @@ export default function ProgressScreen() {
         <SectionHeader
           title="Weight history"
           subtitle={`${weightLogs.length} logs in selected range`}
+        />
+
+        <NutritionTrendCard
+          series={nutritionSeries}
+          calorieTarget={overview?.goal?.daily_calorie_target ?? null}
         />
 
         {weightLogs.length === 0 ? (
@@ -441,6 +489,133 @@ function MetricCard({ label, value }: { label: string; value: string }) {
     <AppCard style={styles.metricCard}>
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
+    </AppCard>
+  )
+}
+
+function WeightTrendCard({ series }: { series: WeightProgressPoint[] }) {
+  const chartSeries = sampleSeries(series)
+  const weights = chartSeries.map((point) => Number(point.weight_kg))
+  const minWeight = weights.length > 0 ? Math.min(...weights) : 0
+  const maxWeight = weights.length > 0 ? Math.max(...weights) : 0
+
+  return (
+    <AppCard style={styles.trendCard}>
+      <SectionHeader
+        title="Weight trend"
+        subtitle={
+          series.length > 1
+            ? `${series.length} weight points in selected range`
+            : 'Add more weight logs to see your trend'
+        }
+      />
+
+      {chartSeries.length > 1 ? (
+        <>
+          <View style={styles.chartWrapper}>
+            {chartSeries.map((point) => {
+              const height = getBarHeight(Number(point.weight_kg), minWeight, maxWeight)
+
+              return (
+                <View key={`${point.date}-${point.weight_kg}`} style={styles.chartItem}>
+                  <View style={styles.chartBarTrack}>
+                    <View
+                      style={[
+                        styles.weightChartBar,
+                        {
+                          height: `${height}%`
+                        }
+                      ]}
+                    />
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+
+          <View style={styles.chartLabels}>
+            <Text style={styles.chartLabel}>{formatShortDate(chartSeries[0].date)}</Text>
+            <Text style={styles.chartLabel}>
+              {formatShortDate(chartSeries[chartSeries.length - 1].date)}
+            </Text>
+          </View>
+
+          <View style={styles.chartSummaryRow}>
+            <Text style={styles.chartSummaryText}>Min {formatDecimal(minWeight, ' kg')}</Text>
+            <Text style={styles.chartSummaryText}>Max {formatDecimal(maxWeight, ' kg')}</Text>
+          </View>
+        </>
+      ) : (
+        <View style={styles.emptyChartCard}>
+          <Text style={styles.emptyText}>Add at least two weight logs to show a visual trend.</Text>
+        </View>
+      )}
+    </AppCard>
+  )
+}
+
+function NutritionTrendCard({
+  series,
+  calorieTarget
+}: {
+  series: NutritionProgressPoint[]
+  calorieTarget: number | null
+}) {
+  const nonEmptySeries = series.filter((point) => Number(point.calories) > 0)
+  const chartSeries = sampleSeries(nonEmptySeries)
+  const calories = chartSeries.map((point) => Number(point.calories))
+  const maxCalories = calories.length > 0 ? Math.max(...calories, calorieTarget ?? 0) : 0
+
+  return (
+    <AppCard style={styles.trendCard}>
+      <SectionHeader
+        title="Calories trend"
+        subtitle={
+          nonEmptySeries.length > 0
+            ? `${nonEmptySeries.length} logged nutrition days in selected range`
+            : 'Log meals to see calorie trends'
+        }
+      />
+
+      {chartSeries.length > 0 ? (
+        <>
+          <View style={styles.chartWrapper}>
+            {chartSeries.map((point) => {
+              const height = getBarHeight(Number(point.calories), 0, maxCalories)
+
+              return (
+                <View key={`${point.date}-${point.calories}`} style={styles.chartItem}>
+                  <View style={styles.chartBarTrack}>
+                    <View
+                      style={[
+                        styles.calorieChartBar,
+                        {
+                          height: `${height}%`
+                        }
+                      ]}
+                    />
+                  </View>
+                </View>
+              )
+            })}
+          </View>
+
+          <View style={styles.chartLabels}>
+            <Text style={styles.chartLabel}>{formatShortDate(chartSeries[0].date)}</Text>
+            <Text style={styles.chartLabel}>
+              {formatShortDate(chartSeries[chartSeries.length - 1].date)}
+            </Text>
+          </View>
+
+          {calorieTarget ? (
+            <Text style={styles.chartHint}>Target: {formatNumber(calorieTarget, ' kcal/day')}</Text>
+          ) : null}
+        </>
+      ) : (
+        <View style={styles.emptyChartCard}>
+          <Text style={styles.emptyText}>Log meals for a few days to see calorie trends here.</Text>
+        </View>
+      )}
     </AppCard>
   )
 }
@@ -594,5 +769,71 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 12,
     fontWeight: '900'
+  },
+  trendCard: {
+    marginBottom: 16
+  },
+  chartWrapper: {
+    height: 150,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    marginTop: 4
+  },
+  chartItem: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end'
+  },
+  chartBarTrack: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    borderRadius: 999,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden'
+  },
+  weightChartBar: {
+    width: '100%',
+    borderRadius: 999,
+    backgroundColor: colors.primary
+  },
+  calorieChartBar: {
+    width: '100%',
+    borderRadius: 999,
+    backgroundColor: colors.warning
+  },
+  chartLabels: {
+    marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  chartLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  chartSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8
+  },
+  chartSummaryText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  chartHint: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 8,
+    fontWeight: '700'
+  },
+  emptyChartCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14
   }
 })
