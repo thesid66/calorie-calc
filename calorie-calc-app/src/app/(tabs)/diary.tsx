@@ -1,12 +1,11 @@
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
 import { deleteMealEntry } from '@/api/mealEntries'
-import { AppButton } from '@/components/ui/AppButton'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { Diary, MealEntry, MealType } from '@/types/diary'
 
@@ -189,10 +188,7 @@ export default function DiaryScreen() {
   if (loading) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading diary...</Text>
-        </View>
+        <LoadingState message="Loading diary..." />
       </Screen>
     )
   }
@@ -319,7 +315,14 @@ export default function DiaryScreen() {
                         entry={entry}
                         deleting={deletingEntryId === entry.id}
                         onDelete={() => confirmDeleteEntry(entry)}
-                        onEdit={() => router.push(`/meal/edit-entry/${entry.id}`)}
+                        onEdit={() =>
+                          router.push({
+                            pathname: '/meal/edit-entry/[id]',
+                            params: {
+                              id: String(entry.id)
+                            }
+                          })
+                        }
                       />
                     ))}
                   </View>
@@ -414,16 +417,6 @@ function MacroCard({
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 12,
     marginBottom: 18,

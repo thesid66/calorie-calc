@@ -1,14 +1,12 @@
 import { router } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
 import { getNutritionGoal, storeNutritionGoal } from '@/api/goals'
 import { getProfile } from '@/api/profile'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppInput, ErrorCard, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { GoalType } from '@/types/goals'
 import type { ActivityLevel, UserProfile } from '@/types/profile'
@@ -62,10 +60,6 @@ export default function OnboardingGoalScreen() {
     () => activityLevels.find((level) => level.id === activityLevelId),
     [activityLevels, activityLevelId]
   )
-
-  useEffect(() => {
-    loadInitialData()
-  }, [])
 
   async function loadInitialData() {
     try {
@@ -135,6 +129,10 @@ export default function OnboardingGoalScreen() {
       setLoadingInitialData(false)
     }
   }
+
+  useEffect(() => {
+    loadInitialData()
+  }, [])
 
   function blurActiveElement() {
     if (typeof document === 'undefined') {
@@ -223,10 +221,7 @@ export default function OnboardingGoalScreen() {
   if (loadingInitialData) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading goal setup...</Text>
-        </View>
+        <LoadingState message="Loading goal setup..." />
       </Screen>
     )
   }
@@ -350,9 +345,8 @@ export default function OnboardingGoalScreen() {
       </View>
 
       {formError ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Please check your goal</Text>
-          <Text style={styles.errorText}>{formError}</Text>
+        <View style={styles.errorSpacing}>
+          <ErrorCard title="Please check your goal" message={formError} />
         </View>
       ) : null}
 
@@ -410,16 +404,6 @@ export default function OnboardingGoalScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 8,
     marginBottom: 22
@@ -618,23 +602,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.muted
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
+  errorSpacing: {
     marginBottom: 18,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
   }
 })

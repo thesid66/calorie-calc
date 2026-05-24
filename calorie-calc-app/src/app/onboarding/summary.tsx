@@ -1,11 +1,10 @@
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native'
+import { Alert, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getNutritionGoal } from '@/api/goals'
-import { AppButton } from '@/components/ui/AppButton'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { NutritionGoal } from '@/types/goals'
 
@@ -41,10 +40,6 @@ export default function OnboardingSummaryScreen() {
   const [loading, setLoading] = useState(true)
   const [goal, setGoal] = useState<NutritionGoal | null>(null)
 
-  useEffect(() => {
-    loadGoalSummary()
-  }, [])
-
   async function loadGoalSummary() {
     try {
       setLoading(true)
@@ -64,13 +59,14 @@ export default function OnboardingSummaryScreen() {
     }
   }
 
+  useEffect(() => {
+    loadGoalSummary()
+  }, [])
+
   if (loading) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading your goal summary...</Text>
-        </View>
+        <LoadingState message="Loading your goal summary..." />
       </Screen>
     )
   }
@@ -198,16 +194,6 @@ function MacroCard({ label, value, suffix }: { label: string; value: string; suf
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 8,
     marginBottom: 22

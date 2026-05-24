@@ -1,13 +1,11 @@
 import { router } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
 import { getProfile, updateProfile } from '@/api/profile'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppInput, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { ActivityLevel, SexForFormula, UnitSystem } from '@/types/profile'
 
@@ -29,10 +27,6 @@ export default function OnboardingProfileScreen() {
     () => activityLevels.find((level) => level.id === activityLevelId),
     [activityLevels, activityLevelId]
   )
-
-  useEffect(() => {
-    loadInitialData()
-  }, [])
 
   async function loadInitialData() {
     try {
@@ -74,18 +68,12 @@ export default function OnboardingProfileScreen() {
     }
   }
 
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+
   function toNumber(value: string): number {
     return Number(value.replace(',', '.').trim())
-  }
-
-  function toNullableNumber(value: string): number | null {
-    const cleanValue = value.replace(',', '.').trim()
-
-    if (!cleanValue) {
-      return null
-    }
-
-    return Number(cleanValue)
   }
 
   function validateForm(): string | null {
@@ -184,10 +172,7 @@ export default function OnboardingProfileScreen() {
   if (loadingInitialData) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading profile setup...</Text>
-        </View>
+        <LoadingState message="Loading profile setup..." />
       </Screen>
     )
   }
@@ -320,16 +305,6 @@ export default function OnboardingProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 8,
     marginBottom: 24

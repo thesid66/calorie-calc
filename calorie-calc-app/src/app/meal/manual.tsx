@@ -1,12 +1,10 @@
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { storeMealEntry, type StoreManualMealEntryPayload } from '@/api/mealEntries'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppCard, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { MealType } from '@/types/diary'
 
@@ -197,24 +195,21 @@ export default function ManualEntryScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
+      <AppCard gap={16} style={styles.card}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meal</Text>
+          <SectionHeader title="Meal" />
 
           <View style={styles.chipRow}>
             {mealOptions.map((option) => {
               const selected = option.type === mealType
 
               return (
-                <Pressable
+                <Chip
                   key={option.type}
-                  style={[styles.chip, selected ? styles.chipSelected : null]}
+                  label={option.label}
+                  selected={selected}
                   onPress={() => setMealType(option.type)}
-                >
-                  <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
+                />
               )
             })}
           </View>
@@ -251,10 +246,10 @@ export default function ManualEntryScreen() {
             keyboardType="numeric"
           />
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Macros</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Macros" />
 
         <View style={styles.form}>
           <View style={styles.twoColumn}>
@@ -331,12 +326,11 @@ export default function ManualEntryScreen() {
             multiline
           />
         </View>
-      </View>
+      </AppCard>
 
       {formError ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Please check your entry</Text>
-          <Text style={styles.errorText}>{formError}</Text>
+        <View style={styles.errorSpacing}>
+          <ErrorCard title="Please check your entry" message={formError} />
         </View>
       ) : null}
 
@@ -369,46 +363,15 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 16,
     marginBottom: 16
   },
   section: {
     gap: 12
   },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900'
-  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10
-  },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 14,
-    paddingVertical: 9
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  chipTextSelected: {
-    color: '#FFFFFF'
   },
   form: {
     gap: 14
@@ -420,24 +383,8 @@ const styles = StyleSheet.create({
   column: {
     flex: 1
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
+  errorSpacing: {
     marginBottom: 16,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
   },
   actions: {
     gap: 12

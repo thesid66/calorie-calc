@@ -4,9 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { createCustomFood } from '@/api/foods'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppCard, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { CreateCustomFoodPayload } from '@/types/foods'
 
@@ -238,8 +236,8 @@ export default function CustomFoodScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Basic details</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Basic details" />
 
         <View style={styles.form}>
           <AppInput
@@ -274,32 +272,29 @@ export default function CustomFoodScreen() {
             autoCapitalize="none"
           />
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Food type</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Food type" />
 
         <View style={styles.chipRow}>
           {foodTypeOptions.map((type) => {
             const selected = foodType === type
 
             return (
-              <Pressable
+              <Chip
                 key={type}
-                style={[styles.chip, selected ? styles.chipSelected : null]}
+                label={formatFoodType(type)}
+                selected={selected}
                 onPress={() => setFoodType(type)}
-              >
-                <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>
-                  {formatFoodType(type)}
-                </Text>
-              </Pressable>
+              />
             )
           })}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Nutrition per 100g</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Nutrition per 100g" />
 
         <View style={styles.form}>
           <AppInput
@@ -376,10 +371,10 @@ export default function CustomFoodScreen() {
             </View>
           </View>
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Default serving</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Default serving" />
 
         <View style={styles.form}>
           <AppInput
@@ -397,9 +392,9 @@ export default function CustomFoodScreen() {
             keyboardType="numeric"
           />
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard gap={16} style={styles.card}>
         <Pressable style={styles.publicToggle} onPress={() => setIsPublic((current) => !current)}>
           <View style={[styles.checkbox, isPublic ? styles.checkboxChecked : null]}>
             {isPublic ? <Text style={styles.checkboxText}>✓</Text> : null}
@@ -413,12 +408,11 @@ export default function CustomFoodScreen() {
             </Text>
           </View>
         </Pressable>
-      </View>
+      </AppCard>
 
       {formError ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Please check custom food</Text>
-          <Text style={styles.errorText}>{formError}</Text>
+        <View style={styles.errorSpacing}>
+          <ErrorCard title="Please check custom food" message={formError} />
         </View>
       ) : null}
 
@@ -451,18 +445,7 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 16,
     marginBottom: 16
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900'
   },
   form: {
     gap: 14
@@ -478,26 +461,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10
-  },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 14,
-    paddingVertical: 9
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  chipTextSelected: {
-    color: '#FFFFFF'
   },
   publicToggle: {
     flexDirection: 'row',
@@ -536,24 +499,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
+  errorSpacing: {
     marginBottom: 16,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
   },
   actions: {
     gap: 12

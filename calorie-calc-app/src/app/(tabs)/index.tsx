@@ -1,11 +1,10 @@
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
-import { AppButton } from '@/components/ui/AppButton'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import { useAuth } from '@/providers/AuthProvider'
 import type { Diary, MealType } from '@/types/diary'
@@ -99,10 +98,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading dashboard...</Text>
-        </View>
+        <LoadingState message="Loading dashboard..." />
       </Screen>
     )
   }
@@ -248,16 +244,6 @@ function MacroCard({
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 12,
     marginBottom: 20,

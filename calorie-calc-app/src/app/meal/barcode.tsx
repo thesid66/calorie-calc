@@ -1,12 +1,10 @@
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native'
 
 import { lookupBarcode, saveBarcodeAsFood } from '@/api/barcodes'
 import { ApiError } from '@/api/client'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppCard, AppInput, ErrorCard, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { BarcodeLookup } from '@/types/barcodes'
 
@@ -129,7 +127,7 @@ export default function BarcodeLookupScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
+      <AppCard gap={14} style={styles.card}>
         <AppInput
           label="Barcode"
           value={barcode}
@@ -152,12 +150,11 @@ export default function BarcodeLookupScreen() {
             onPress={() => handleLookup(true)}
           />
         ) : null}
-      </View>
+      </AppCard>
 
       {formError ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Please check barcode</Text>
-          <Text style={styles.errorText}>{formError}</Text>
+        <View style={styles.errorSpacing}>
+          <ErrorCard title="Please check barcode" message={formError} />
         </View>
       ) : null}
 
@@ -237,13 +234,11 @@ export default function BarcodeLookupScreen() {
           </View>
 
           {mappedProduct?.data_quality?.has_calories === false ? (
-            <View style={styles.warningCard}>
-              <Text style={styles.warningTitle}>Nutrition may be incomplete</Text>
-              <Text style={styles.warningText}>
-                Open Food Facts did not provide reliable calories for this product. Save it only if
-                you plan to review or edit it later.
-              </Text>
-            </View>
+            <ErrorCard
+              title="Nutrition may be incomplete"
+              message="Open Food Facts did not provide reliable calories for this product. Save it only if you plan to review or edit it later."
+              variant="warning"
+            />
           ) : null}
 
           {existingFood ? (
@@ -291,12 +286,6 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 14,
     marginBottom: 16
   },
   loadingRow: {
@@ -405,24 +394,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21
   },
-  warningCard: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: 14,
-    gap: 4
-  },
-  warningTitle: {
-    color: '#92400E',
-    fontSize: 15,
-    fontWeight: '900'
-  },
-  warningText: {
-    color: '#92400E',
-    fontSize: 14,
-    lineHeight: 20
-  },
   savedCard: {
     backgroundColor: '#F0FDF4',
     borderRadius: 16,
@@ -441,23 +412,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
+  errorSpacing: {
     marginBottom: 16,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
   }
 })

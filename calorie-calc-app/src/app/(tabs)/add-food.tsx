@@ -5,9 +5,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { ApiError } from '@/api/client'
 import { searchFoods } from '@/api/foods'
 import { storeMealEntry } from '@/api/mealEntries'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import { AppButton, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { MealType } from '@/types/diary'
 import type { Food, FoodServing } from '@/types/foods'
@@ -118,26 +116,6 @@ export default function AddFoodScreen() {
     [selectedFood, selectedServing, quantity, totalGrams]
   )
 
-  useEffect(() => {
-    loadFoods('')
-  }, [])
-
-  useEffect(() => {
-    if (searchDebounceRef.current) {
-      clearTimeout(searchDebounceRef.current)
-    }
-
-    searchDebounceRef.current = setTimeout(() => {
-      loadFoods(search)
-    }, 350)
-
-    return () => {
-      if (searchDebounceRef.current) {
-        clearTimeout(searchDebounceRef.current)
-      }
-    }
-  }, [search])
-
   async function loadFoods(searchTerm: string) {
     try {
       setLoadingFoods(true)
@@ -159,6 +137,26 @@ export default function AddFoodScreen() {
       setLoadingFoods(false)
     }
   }
+
+  useEffect(() => {
+    loadFoods('')
+  }, [])
+
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current)
+    }
+
+    searchDebounceRef.current = setTimeout(() => {
+      loadFoods(search)
+    }, 350)
+
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+      }
+    }
+  }, [search])
 
   function selectFood(food: Food) {
     const defaultServing = getDefaultServing(food)
@@ -362,22 +360,19 @@ export default function AddFoodScreen() {
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Meal</Text>
+            <SectionHeader title="Meal" />
 
             <View style={styles.chipRow}>
               {mealOptions.map((option) => {
                 const selected = option.type === mealType
 
                 return (
-                  <Pressable
+                  <Chip
                     key={option.type}
-                    style={[styles.chip, selected ? styles.chipSelected : null]}
+                    label={option.label}
+                    selected={selected}
                     onPress={() => setMealType(option.type)}
-                  >
-                    <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>
-                      {option.label}
-                    </Text>
-                  </Pressable>
+                  />
                 )
               })}
             </View>
@@ -394,7 +389,7 @@ export default function AddFoodScreen() {
 
             {selectedFood.servings.length > 0 ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Serving size</Text>
+                <SectionHeader title="Serving size" />
 
                 <View style={styles.servingList}>
                   {selectedFood.servings.map((serving) => {
@@ -494,18 +489,13 @@ export default function AddFoodScreen() {
             <Text style={styles.estimateValue}>{formatNumber(estimatedCalories)} kcal</Text>
           </View>
 
-          {formError ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorTitle}>Please check your entry</Text>
-              <Text style={styles.errorText}>{formError}</Text>
-            </View>
-          ) : null}
+          <ErrorCard title="Please check your entry" message={formError} />
 
           <AppButton title="Log food" loading={saving} onPress={handleLogFood} />
         </View>
       ) : (
         <View style={styles.resultsSection}>
-          <Text style={styles.sectionTitle}>Food results</Text>
+          <SectionHeader title="Food results" />
 
           {foods.length === 0 && !loadingFoods ? (
             <View style={styles.emptyCard}>
@@ -586,11 +576,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 12
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900'
   },
   foodList: {
     gap: 10
@@ -694,26 +679,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10
   },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 14,
-    paddingVertical: 9
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  chipTextSelected: {
-    color: '#FFFFFF'
-  },
   form: {
     gap: 14
   },
@@ -768,25 +733,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 4
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
-  },
-
   quickEntryCard: {
     backgroundColor: colors.card,
     borderRadius: 18,

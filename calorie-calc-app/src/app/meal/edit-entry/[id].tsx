@@ -1,12 +1,19 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getMealEntry, updateMealEntry, type UpdateMealEntryPayload } from '@/api/mealEntries'
-import { AppButton } from '@/components/ui/AppButton'
-import { AppInput } from '@/components/ui/AppInput'
-import { Screen } from '@/components/ui/Screen'
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  Chip,
+  ErrorCard,
+  LoadingState,
+  Screen,
+  SectionHeader
+} from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { MealEntry, MealType } from '@/types/diary'
 
@@ -37,14 +44,6 @@ function formatNumber(value: number | null | undefined, suffix = '') {
   }
 
   return `${Math.round(Number(value))}${suffix}`
-}
-
-function formatDecimal(value: number | null | undefined, suffix = '') {
-  if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return `0${suffix}`
-  }
-
-  return `${Number(value).toFixed(1)}${suffix}`
 }
 
 function blurActiveElement() {
@@ -86,10 +85,6 @@ export default function EditMealEntryScreen() {
   const [sugarG, setSugarG] = useState('')
   const [sodiumMg, setSodiumMg] = useState('')
   const [notes, setNotes] = useState('')
-
-  useEffect(() => {
-    loadMealEntry()
-  }, [mealEntryId])
 
   async function loadMealEntry() {
     if (!mealEntryId || Number.isNaN(mealEntryId)) {
@@ -146,6 +141,10 @@ export default function EditMealEntryScreen() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadMealEntry()
+  }, [mealEntryId])
 
   function isFoodMode() {
     return entry?.food_id !== null && entry?.food_id !== undefined
@@ -291,10 +290,7 @@ export default function EditMealEntryScreen() {
   if (loading) {
     return (
       <Screen scroll={false}>
-        <View style={styles.loadingWrapper}>
-          <ActivityIndicator color={colors.primary} size="large" />
-          <Text style={styles.loadingText}>Loading meal entry...</Text>
-        </View>
+        <LoadingState message="Loading meal entry..." />
       </Screen>
     )
   }
@@ -308,9 +304,8 @@ export default function EditMealEntryScreen() {
         </View>
 
         {formError ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorTitle}>Unable to edit</Text>
-            <Text style={styles.errorText}>{formError}</Text>
+          <View style={styles.errorSpacing}>
+            <ErrorCard title="Unable to edit" message={formError} />
           </View>
         ) : null}
 
@@ -328,30 +323,27 @@ export default function EditMealEntryScreen() {
         </Text>
       </View>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Meal</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Meal" />
 
         <View style={styles.chipRow}>
           {mealOptions.map((option) => {
             const selected = option.type === mealType
 
             return (
-              <Pressable
+              <Chip
                 key={option.type}
-                style={[styles.chip, selected ? styles.chipSelected : null]}
+                label={option.label}
+                selected={selected}
                 onPress={() => setMealType(option.type)}
-              >
-                <Text style={[styles.chipText, selected ? styles.chipTextSelected : null]}>
-                  {option.label}
-                </Text>
-              </Pressable>
+              />
             )
           })}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Entry details</Text>
+      <AppCard gap={16} style={styles.card}>
+        <SectionHeader title="Entry details" />
 
         <View style={styles.form}>
           <AppInput
@@ -404,11 +396,11 @@ export default function EditMealEntryScreen() {
             multiline
           />
         </View>
-      </View>
+      </AppCard>
 
       {!isFoodMode() ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Manual nutrition</Text>
+        <AppCard gap={16} style={styles.card}>
+          <SectionHeader title="Manual nutrition" />
 
           <View style={styles.form}>
             <AppInput
@@ -485,7 +477,7 @@ export default function EditMealEntryScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </AppCard>
       ) : (
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Food database entry</Text>
@@ -501,9 +493,8 @@ export default function EditMealEntryScreen() {
       )}
 
       {formError ? (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorTitle}>Please check meal entry</Text>
-          <Text style={styles.errorText}>{formError}</Text>
+        <View style={styles.errorSpacing}>
+          <ErrorCard title="Please check meal entry" message={formError} />
         </View>
       ) : null}
 
@@ -521,16 +512,6 @@ export default function EditMealEntryScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrapper: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12
-  },
-  loadingText: {
-    color: colors.muted,
-    fontSize: 15
-  },
   header: {
     gap: 8,
     marginBottom: 20
@@ -546,43 +527,12 @@ const styles = StyleSheet.create({
     lineHeight: 24
   },
   card: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 16,
     marginBottom: 16
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '900'
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10
-  },
-  chip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 14,
-    paddingVertical: 9
-  },
-  chipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  chipTextSelected: {
-    color: '#FFFFFF'
   },
   form: {
     gap: 14
@@ -618,24 +568,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900'
   },
-  errorCard: {
-    backgroundColor: '#FEF2F2',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    padding: 14,
+  errorSpacing: {
     marginBottom: 16,
-    gap: 4
-  },
-  errorTitle: {
-    color: colors.danger,
-    fontSize: 15,
-    fontWeight: '800'
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 14,
-    lineHeight: 20
   },
   actions: {
     gap: 12
