@@ -14,7 +14,8 @@ import {
   ErrorCard,
   LoadingState,
   Screen,
-  SectionHeader
+  SectionHeader,
+  AppDatePicker
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { GoalType, NutritionGoal } from '@/types/goals'
@@ -162,6 +163,13 @@ export default function SettingsScreen() {
       setLoading(false)
       setRefreshing(false)
     }
+  }
+
+  function dateYearsAgo(years: number) {
+    const date = new Date()
+    date.setFullYear(date.getFullYear() - years)
+
+    return date
   }
 
   function validateProfile(): string | null {
@@ -363,16 +371,16 @@ export default function SettingsScreen() {
         />
 
         <View style={styles.form}>
-          <AppInput
+          <AppDatePicker
             label="Date of birth"
             value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
+            onChange={setDateOfBirth}
+            maximumDate={dateYearsAgo(13)}
+            hint="You must be at least 13 years old."
           />
 
           <View style={styles.optionBlock}>
-            <Text style={styles.optionLabel}>Sex for formula</Text>
+            <Text style={styles.optionLabel}>Gender</Text>
 
             <View style={styles.chipRow}>
               {sexOptions.map((option) => (

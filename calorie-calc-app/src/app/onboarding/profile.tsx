@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
 import { getProfile, updateProfile } from '@/api/profile'
-import { AppButton, AppInput, LoadingState, Screen } from '@/components/ui'
+import { AppButton, AppInput, LoadingState, Screen, AppDatePicker } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { ActivityLevel, SexForFormula, UnitSystem } from '@/types/profile'
 
@@ -74,6 +74,13 @@ export default function OnboardingProfileScreen() {
 
   function toNumber(value: string): number {
     return Number(value.replace(',', '.').trim())
+  }
+
+  function dateYearsAgo(years: number) {
+    const date = new Date()
+    date.setFullYear(date.getFullYear() - years)
+
+    return date
   }
 
   function validateForm(): string | null {
@@ -187,7 +194,7 @@ export default function OnboardingProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sex for formula</Text>
+        <Text style={styles.sectionTitle}>Gender</Text>
 
         <View style={styles.optionRow}>
           <Pressable
@@ -221,12 +228,12 @@ export default function OnboardingProfileScreen() {
       </View>
 
       <View style={styles.form}>
-        <AppInput
+        <AppDatePicker
           label="Date of birth"
           value={dateOfBirth}
-          onChangeText={setDateOfBirth}
-          placeholder="YYYY-MM-DD"
-          autoCapitalize="none"
+          onChange={setDateOfBirth}
+          maximumDate={dateYearsAgo(13)}
+          hint="You must be at least 13 years old."
         />
 
         <AppInput

@@ -6,12 +6,15 @@ import { spacing, typography } from '@/constants/theme'
 type SectionHeaderProps = {
   title: string
   subtitle?: string
+  eyebrow?: string
   centered?: boolean
 }
 
-export function SectionHeader({ title, subtitle, centered = false }: SectionHeaderProps) {
+export function SectionHeader({ title, subtitle, eyebrow, centered = false }: SectionHeaderProps) {
   return (
     <View style={[styles.wrapper, centered ? styles.centered : null]}>
+      {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+
       <Text style={styles.title}>{title}</Text>
 
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -25,6 +28,11 @@ const styles = StyleSheet.create({
   },
   centered: {
     alignItems: 'center'
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase'
   },
   title: {
     ...typography.sectionTitle,

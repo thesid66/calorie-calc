@@ -32,6 +32,18 @@ export type StoreMealEntryPayload = StoreFoodMealEntryPayload | StoreManualMealE
 
 export type UpdateMealEntryPayload = StoreMealEntryPayload
 
+export type CopyMealEntriesPayload = {
+  from_date: string
+  to_date: string
+  from_meal_type: MealType
+  to_meal_type?: MealType | null
+}
+
+export type CopyDayEntriesPayload = {
+  from_date: string
+  to_date: string
+}
+
 export function storeMealEntry(payload: StoreMealEntryPayload) {
   return apiClient.post<{
     meal_entry: MealEntry
@@ -58,4 +70,18 @@ export function getRecentMealEntries(limit = 10) {
   return apiClient.get<{
     meal_entries: MealEntry[]
   }>(`/meal-entries/recent?limit=${limit}`)
+}
+
+export function copyMealEntries(payload: CopyMealEntriesPayload) {
+  return apiClient.post<{
+    copied_count: number
+    meal_entries: MealEntry[]
+  }>('/meal-entries/copy-meal', payload)
+}
+
+export function copyDayEntries(payload: CopyDayEntriesPayload) {
+  return apiClient.post<{
+    copied_count: number
+    meal_entries: MealEntry[]
+  }>('/meal-entries/copy-day', payload)
 }

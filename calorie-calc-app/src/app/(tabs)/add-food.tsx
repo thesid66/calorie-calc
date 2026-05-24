@@ -5,7 +5,16 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 import { ApiError } from '@/api/client'
 import { searchFoods } from '@/api/foods'
 import { getRecentMealEntries, storeMealEntry } from '@/api/mealEntries'
-import { AppButton, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
+import { addFoodFavorite, getFoodFavorites, removeFoodFavorite } from '@/api/foodFavorites'
+import {
+  AppButton,
+  AppInput,
+  Chip,
+  ErrorCard,
+  Screen,
+  SectionHeader,
+  AppDatePicker
+} from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { MealEntry, MealType } from '@/types/diary'
 import type { Food, FoodServing } from '@/types/foods'
@@ -134,6 +143,11 @@ export default function AddFoodScreen() {
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const [favoriteFoods, setFavoriteFoods] = useState<Food[]>([])
+  const [favoriteFoodIds, setFavoriteFoodIds] = useState<number[]>([])
+  const [loadingFavoriteFoods, setLoadingFavoriteFoods] = useState(false)
+  const [updatingFavoriteFoodId, setUpdatingFavoriteFoodId] = useState<number | null>(null)
+
   const selectedServing = useMemo(() => {
     if (!selectedFood || !selectedServingId) {
       return null
@@ -188,6 +202,26 @@ export default function AddFoodScreen() {
     }
   }, [])
 
+  const loadFavoriteFoods = useCallback(async () => {
+    try {
+      setLoadingFavoriteFoods(true)
+
+      const response = await getFoodFavorites()
+
+      setFavoriteFoods(response.data.foods)
+      setFavoriteFoodIds(response.data.food_ids)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.log('Could not load favourite foods:', error.message)
+        return
+      }
+
+      console.log('Could not load favourite foods.')
+    } finally {
+      setLoadingFavoriteFoods(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadFoods('')
   }, [])
@@ -195,7 +229,8 @@ export default function AddFoodScreen() {
   useFocusEffect(
     useCallback(() => {
       loadRecentEntries()
-    }, [loadRecentEntries])
+      loadFavoriteFoods()
+    }, [loadRecentEntries, loadFavoriteFoods])
   )
 
   useEffect(() => {
@@ -269,6 +304,48 @@ export default function AddFoodScreen() {
     }
 
     return null
+  }
+
+  async function toggleFavoriteFood(food: Food) {
+    if (updatingFavoriteFoodId === food.id) {
+      return
+    }
+
+    const isFavorite = favoriteFoodIds.includes(food.id)
+
+    try {
+      setUpdatingFavoriteFoodId(food.id)
+
+      if (isFavorite) {
+        await removeFoodFavorite(food.id)
+
+        setFavoriteFoodIds((current) => current.filter((foodId) => foodId !== food.id))
+        setFavoriteFoods((current) => current.filter((favoriteFood) => favoriteFood.id !== food.id))
+      } else {
+        const response = await addFoodFavorite(food.id)
+
+        setFavoriteFoodIds((current) =>
+          current.includes(food.id) ? current : [food.id, ...current]
+        )
+
+        setFavoriteFoods((current) => {
+          if (current.some((favoriteFood) => favoriteFood.id === food.id)) {
+            return current
+          }
+
+          return [response.data.food, ...current]
+        })
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        Alert.alert('Could not update favourite', error.message)
+        return
+      }
+
+      Alert.alert('Could not update favourite', 'Please try again.')
+    } finally {
+      setUpdatingFavoriteFoodId(null)
+    }
   }
 
   async function handleQuickRelog(entry: MealEntry) {
@@ -445,6 +522,38 @@ export default function AddFoodScreen() {
         ) : null}
       </View>
 
+      {favoriteFoods.length > 0 || loadingFavoriteFoods ? (
+        <View style={styles.quickEntryCard}>
+          <SectionHeader title="Favourite foods" subtitle="Pinned foods you use often." />
+
+          {loadingFavoriteFoods ? (
+            <Text style={styles.loadingText}>Loading favourite foods...</Text>
+          ) : (
+            <View style={styles.recentList}>
+              {favoriteFoods.map((food) => (
+                <View key={food.id} style={styles.recentCard}>
+                  <Pressable style={styles.recentMain} onPress={() => selectFood(food)}>
+                    <Text style={styles.recentName}>{food.name}</Text>
+
+                    {food.nepali_name ? (
+                      <Text style={styles.recentMeta}>{food.nepali_name}</Text>
+                    ) : null}
+
+                    <Text style={styles.recentCalories}>
+                      {formatNumber(food.nutrition_per_100g.calories)} kcal / 100g
+                    </Text>
+                  </Pressable>
+
+                  <Pressable style={styles.quickLogButton} onPress={() => selectFood(food)}>
+                    <Text style={styles.quickLogButtonText}>Use</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
+
       {recentEntries.length > 0 || loadingRecentEntries ? (
         <View style={styles.quickEntryCard}>
           <SectionHeader title="Recent foods" subtitle="Quickly log foods you added recently." />
@@ -578,13 +687,7 @@ export default function AddFoodScreen() {
           </View>
 
           <View style={styles.form}>
-            <AppInput
-              label="Date"
-              value={loggedForDate}
-              onChangeText={setLoggedForDate}
-              placeholder="YYYY-MM-DD"
-              autoCapitalize="none"
-            />
+            <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
 
             {selectedFood.servings.length > 0 ? (
               <View style={styles.section}>
@@ -723,6 +826,19 @@ export default function AddFoodScreen() {
                 </View>
 
                 <View style={styles.foodRight}>
+                  <Pressable
+                    style={styles.favoriteButton}
+                    disabled={updatingFavoriteFoodId === food.id}
+                    onPress={(event) => {
+                      event.stopPropagation()
+                      toggleFavoriteFood(food)
+                    }}
+                  >
+                    <Text style={styles.favoriteButtonText}>
+                      {favoriteFoodIds.includes(food.id) ? '★' : '☆'}
+                    </Text>
+                  </Pressable>
+
                   <Text style={styles.foodCalories}>
                     {formatNumber(food.nutrition_per_100g.calories)}
                   </Text>
@@ -997,5 +1113,22 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '900'
+  },
+  favoriteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginBottom: 6
+  },
+  favoriteButtonText: {
+    color: '#D97706',
+    fontSize: 20,
+    fontWeight: '900',
+    lineHeight: 22
   }
 })

@@ -4,7 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
-import { deleteMealEntry } from '@/api/mealEntries'
+import { copyDayEntries, copyMealEntries, deleteMealEntry } from '@/api/mealEntries'
 import { AppButton, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { Diary, MealEntry, MealType } from '@/types/diary'
@@ -89,6 +89,8 @@ export default function DiaryScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
+  const [copyingMealType, setCopyingMealType] = useState<MealType | null>(null)
+  const [copyingDay, setCopyingDay] = useState(false)
   const [selectedDate, setSelectedDate] = useState(todayDateString())
   const [diary, setDiary] = useState<Diary | null>(null)
 
@@ -158,6 +160,73 @@ export default function DiaryScreen() {
       Alert.alert('Could not delete entry', 'Please try again.')
     } finally {
       setDeletingEntryId(null)
+    }
+  }
+
+  async function handleCopyPreviousDay() {
+    try {
+      setCopyingDay(true)
+
+      const fromDate = addDays(selectedDate, -1)
+
+      const response = await copyDayEntries({
+        from_date: fromDate,
+        to_date: selectedDate
+      })
+
+      await loadDiary(selectedDate)
+
+      if (response.data.copied_count === 0) {
+        Alert.alert('Nothing to copy', `No meals found on ${fromDate}.`)
+        return
+      }
+
+      Alert.alert('Day copied', `${response.data.copied_count} item(s) copied from ${fromDate}.`)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        Alert.alert('Could not copy day', error.message)
+        return
+      }
+
+      Alert.alert('Could not copy day', 'Please try again.')
+    } finally {
+      setCopyingDay(false)
+    }
+  }
+
+  async function handleCopyPreviousMeal(mealType: MealType) {
+    try {
+      setCopyingMealType(mealType)
+
+      const fromDate = addDays(selectedDate, -1)
+
+      const response = await copyMealEntries({
+        from_date: fromDate,
+        to_date: selectedDate,
+        from_meal_type: mealType,
+        to_meal_type: mealType
+      })
+
+      await loadDiary(selectedDate)
+
+      if (response.data.copied_count === 0) {
+        Alert.alert(
+          'Nothing to copy',
+          `No ${mealLabels[mealType].toLowerCase()} found on ${fromDate}.`
+        )
+        return
+      }
+
+      Alert.alert('Meal copied', `${response.data.copied_count} item(s) copied from ${fromDate}.`)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        Alert.alert('Could not copy meal', error.message)
+        return
+      }
+
+      Alert.alert('Could not copy meal', 'Please try again.')
+    } finally {
+      setCopyingMealType(null)
     }
   }
 
@@ -288,6 +357,13 @@ export default function DiaryScreen() {
 
       <View style={styles.actions}>
         <AppButton title="Add food" onPress={() => goToAddFood()} />
+
+        <AppButton
+          title={copyingDay ? 'Copying yesterday...' : 'Copy yesterday'}
+          variant="secondary"
+          loading={copyingDay}
+          onPress={handleCopyPreviousDay}
+        />
       </View>
 
       <View style={styles.section}>
@@ -311,9 +387,21 @@ export default function DiaryScreen() {
 
                   <View style={styles.mealHeaderRight}>
                     <Text style={styles.mealCalories}>{formatNumber(calories)} kcal</Text>
-                    <Pressable onPress={() => goToAddFood(mealType)}>
-                      <Text style={styles.addMealLink}>Add</Text>
-                    </Pressable>
+
+                    <View style={styles.mealActionLinks}>
+                      <Pressable
+                        disabled={copyingMealType === mealType}
+                        onPress={() => handleCopyPreviousMeal(mealType)}
+                      >
+                        <Text style={styles.copyMealLink}>
+                          {copyingMealType === mealType ? 'Copying...' : 'Copy yesterday'}
+                        </Text>
+                      </Pressable>
+
+                      <Pressable onPress={() => goToAddFood(mealType)}>
+                        <Text style={styles.addMealLink}>Add</Text>
+                      </Pressable>
+                    </View>
                   </View>
                 </View>
 
@@ -741,12 +829,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
+    marginTop: 6,
     borderColor: '#BFDBFE',
     paddingHorizontal: 10,
     paddingVertical: 6
   },
   editButtonText: {
     color: '#1D4ED8',
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  mealActionLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 10
+  },
+  copyMealLink: {
+    color: colors.muted,
     fontSize: 12,
     fontWeight: '900'
   }

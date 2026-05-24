@@ -12,7 +12,8 @@ import {
   ErrorCard,
   LoadingState,
   Screen,
-  SectionHeader
+  SectionHeader,
+  AppDatePicker
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type { MealEntry, MealType } from '@/types/diary'
@@ -346,13 +347,7 @@ export default function EditMealEntryScreen() {
         <SectionHeader title="Entry details" />
 
         <View style={styles.form}>
-          <AppInput
-            label="Date"
-            value={loggedForDate}
-            onChangeText={setLoggedForDate}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
-          />
+          <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
 
           <AppInput
             label="Food name"
@@ -569,7 +564,7 @@ const styles = StyleSheet.create({
     fontWeight: '900'
   },
   errorSpacing: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   actions: {
     gap: 12

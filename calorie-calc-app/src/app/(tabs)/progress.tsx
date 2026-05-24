@@ -13,7 +13,8 @@ import {
   ErrorCard,
   LoadingState,
   Screen,
-  SectionHeader
+  SectionHeader,
+  AppDatePicker
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
 import type {
@@ -377,12 +378,12 @@ export default function ProgressScreen() {
         />
 
         <View style={styles.form}>
-          <AppInput
+          <AppDatePicker
             label="Date"
             value={loggedOn}
-            onChangeText={setLoggedOn}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
+            onChange={setLoggedOn}
+            maximumDate={new Date()}
+            hint="Weight logs cannot be added for a future date."
           />
 
           <AppInput

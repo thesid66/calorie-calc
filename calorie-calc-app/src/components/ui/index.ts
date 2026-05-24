@@ -1,5 +1,6 @@
 export { AppButton } from './AppButton'
 export { AppCard } from './AppCard'
+export { AppDatePicker } from './AppDatePicker'
 export { AppInput } from './AppInput'
 export { Chip } from './Chip'
 export { ErrorCard } from './ErrorCard'
