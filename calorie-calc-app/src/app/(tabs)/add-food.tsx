@@ -295,6 +295,21 @@ export default function AddFoodScreen() {
         ) : null}
       </View>
 
+      <View style={styles.quickEntryCard}>
+        <View style={styles.quickEntryText}>
+          <Text style={styles.quickEntryTitle}>Know the calories already?</Text>
+          <Text style={styles.quickEntrySubtitle}>
+            Add a quick manual entry without searching the food database.
+          </Text>
+        </View>
+
+        <AppButton
+          title="Manual quick entry"
+          variant="secondary"
+          onPress={() => router.push('/meal/manual')}
+        />
+      </View>
+
       {selectedFood ? (
         <View style={styles.selectedCard}>
           <View style={styles.selectedTop}>
@@ -740,5 +755,28 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 14,
     lineHeight: 20
+  },
+
+  quickEntryCard: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    gap: 14,
+    marginBottom: 18
+  },
+  quickEntryText: {
+    gap: 4
+  },
+  quickEntryTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: '900'
+  },
+  quickEntrySubtitle: {
+    color: colors.muted,
+    fontSize: 14,
+    lineHeight: 21
   }
 })
