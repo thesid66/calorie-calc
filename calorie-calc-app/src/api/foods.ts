@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client'
-import type { FoodSearchResponse } from '@/types/foods'
+import type { CreateCustomFoodPayload, Food, FoodSearchResponse } from '@/types/foods'
 
 type SearchFoodsParams = {
   search?: string
@@ -35,4 +35,10 @@ export function searchFoods(params: SearchFoodsParams = {}) {
   const query = queryParams.toString()
 
   return apiClient.get<FoodSearchResponse>(`/foods${query ? `?${query}` : ''}`)
+}
+
+export function createCustomFood(payload: CreateCustomFoodPayload) {
+  return apiClient.post<{
+    food: Food
+  }>('/foods/custom', payload)
 }

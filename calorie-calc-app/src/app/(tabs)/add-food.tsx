@@ -325,6 +325,21 @@ export default function AddFoodScreen() {
         />
       </View>
 
+      <View style={styles.quickEntryCard}>
+        <View style={styles.quickEntryText}>
+          <Text style={styles.quickEntryTitle}>Food not found?</Text>
+          <Text style={styles.quickEntrySubtitle}>
+            Create your own food with calories, macros and serving size.
+          </Text>
+        </View>
+
+        <AppButton
+          title="Create custom food"
+          variant="secondary"
+          onPress={() => router.push('/meal/custom-food')}
+        />
+      </View>
+
       {selectedFood ? (
         <View style={styles.selectedCard}>
           <View style={styles.selectedTop}>

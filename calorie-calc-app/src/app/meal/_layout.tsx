@@ -26,6 +26,13 @@ export default function MealLayout() {
           title: 'Barcode Lookup'
         }}
       />
+
+      <Stack.Screen
+        name="custom-food"
+        options={{
+          title: 'Create Custom Food'
+        }}
+      />
     </Stack>
   )
 }
