@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
@@ -169,7 +169,7 @@ export default function AddFoodScreen() {
     }
   }
 
-  async function loadRecentEntries() {
+  const loadRecentEntries = useCallback(async () => {
     try {
       setLoadingRecentEntries(true)
 
@@ -186,12 +186,17 @@ export default function AddFoodScreen() {
     } finally {
       setLoadingRecentEntries(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadFoods('')
-    loadRecentEntries()
   }, [])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecentEntries()
+    }, [loadRecentEntries])
+  )
 
   useEffect(() => {
     if (searchDebounceRef.current) {
