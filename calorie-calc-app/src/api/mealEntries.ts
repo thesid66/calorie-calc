@@ -30,10 +30,24 @@ export type StoreManualMealEntryPayload = {
 
 export type StoreMealEntryPayload = StoreFoodMealEntryPayload | StoreManualMealEntryPayload
 
+export type UpdateMealEntryPayload = StoreMealEntryPayload
+
 export function storeMealEntry(payload: StoreMealEntryPayload) {
   return apiClient.post<{
     meal_entry: MealEntry
   }>('/meal-entries', payload)
+}
+
+export function getMealEntry(mealEntryId: number) {
+  return apiClient.get<{
+    meal_entry: MealEntry
+  }>(`/meal-entries/${mealEntryId}`)
+}
+
+export function updateMealEntry(mealEntryId: number, payload: UpdateMealEntryPayload) {
+  return apiClient.put<{
+    meal_entry: MealEntry
+  }>(`/meal-entries/${mealEntryId}`, payload)
 }
 
 export function deleteMealEntry(mealEntryId: number) {

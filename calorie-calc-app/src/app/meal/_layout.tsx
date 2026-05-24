@@ -33,6 +33,13 @@ export default function MealLayout() {
           title: 'Create Custom Food'
         }}
       />
+
+      <Stack.Screen
+        name="edit-entry/[id]"
+        options={{
+          title: 'Edit Meal Entry'
+        }}
+      />
     </Stack>
   )
 }

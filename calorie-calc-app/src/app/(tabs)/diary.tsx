@@ -319,6 +319,7 @@ export default function DiaryScreen() {
                         entry={entry}
                         deleting={deletingEntryId === entry.id}
                         onDelete={() => confirmDeleteEntry(entry)}
+                        onEdit={() => router.push(`/meal/edit-entry/${entry.id}`)}
                       />
                     ))}
                   </View>
@@ -343,10 +344,12 @@ export default function DiaryScreen() {
 function MealEntryCard({
   entry,
   deleting,
+  onEdit,
   onDelete
 }: {
   entry: MealEntry
   deleting: boolean
+  onEdit: () => void
   onDelete: () => void
 }) {
   return (
@@ -362,9 +365,15 @@ function MealEntryCard({
 
         {entry.notes ? <Text style={styles.entryNotes}>{entry.notes}</Text> : null}
 
-        <Pressable style={styles.deleteButton} onPress={onDelete} disabled={deleting}>
-          <Text style={styles.deleteButtonText}>{deleting ? 'Deleting...' : 'Delete'}</Text>
-        </Pressable>
+        <View style={styles.entryActions}>
+          <Pressable style={styles.editButton} onPress={onEdit}>
+            <Text style={styles.editButtonText}>Edit</Text>
+          </Pressable>
+
+          <Pressable style={styles.deleteButton} onPress={onDelete} disabled={deleting}>
+            <Text style={styles.deleteButtonText}>{deleting ? 'Deleting...' : 'Delete'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.entryRight}>
@@ -716,6 +725,25 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: colors.danger,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  entryActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6
+  },
+  editButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  editButtonText: {
+    color: '#1D4ED8',
     fontSize: 12,
     fontWeight: '900'
   }
