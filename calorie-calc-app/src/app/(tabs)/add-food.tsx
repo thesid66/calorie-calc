@@ -4,10 +4,10 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 
 import { ApiError } from '@/api/client'
 import { searchFoods } from '@/api/foods'
-import { storeMealEntry } from '@/api/mealEntries'
+import { getRecentMealEntries, storeMealEntry } from '@/api/mealEntries'
 import { AppButton, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
 import { colors } from '@/constants/colors'
-import type { MealType } from '@/types/diary'
+import type { MealEntry, MealType } from '@/types/diary'
 import type { Food, FoodServing } from '@/types/foods'
 
 const mealOptions: { type: MealType; label: string }[] = [
@@ -119,6 +119,10 @@ export default function AddFoodScreen() {
   const [loadingFoods, setLoadingFoods] = useState(false)
   const [foods, setFoods] = useState<Food[]>([])
 
+  const [recentEntries, setRecentEntries] = useState<MealEntry[]>([])
+  const [loadingRecentEntries, setLoadingRecentEntries] = useState(false)
+  const [quickLoggingEntryId, setQuickLoggingEntryId] = useState<number | null>(null)
+
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const [selectedServingId, setSelectedServingId] = useState<number | null>(null)
 
@@ -165,8 +169,28 @@ export default function AddFoodScreen() {
     }
   }
 
+  async function loadRecentEntries() {
+    try {
+      setLoadingRecentEntries(true)
+
+      const response = await getRecentMealEntries(10)
+
+      setRecentEntries(response.data.meal_entries)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        console.log('Could not load recent entries:', error.message)
+        return
+      }
+
+      console.log('Could not load recent entries.')
+    } finally {
+      setLoadingRecentEntries(false)
+    }
+  }
+
   useEffect(() => {
     loadFoods('')
+    loadRecentEntries()
   }, [])
 
   useEffect(() => {
@@ -240,6 +264,68 @@ export default function AddFoodScreen() {
     }
 
     return null
+  }
+
+  async function handleQuickRelog(entry: MealEntry) {
+    if (submittingRef.current) {
+      return
+    }
+
+    setFormError(null)
+
+    try {
+      submittingRef.current = true
+      setQuickLoggingEntryId(entry.id)
+
+      if (entry.food_id) {
+        await storeMealEntry({
+          entry_mode: 'food',
+          logged_for_date: loggedForDate.trim(),
+          meal_type: mealType,
+          food_id: entry.food_id,
+          food_serving_id: null,
+          quantity: entry.quantity ?? 1,
+          total_grams: entry.total_grams ?? null,
+          notes: entry.notes
+        })
+      } else {
+        await storeMealEntry({
+          entry_mode: 'manual',
+          logged_for_date: loggedForDate.trim(),
+          meal_type: mealType,
+          manual_food_name: entry.food_name,
+          serving_label: entry.serving_label,
+          calories: entry.nutrition.calories,
+          protein_g: entry.nutrition.protein_g,
+          carbs_g: entry.nutrition.carbs_g,
+          fat_g: entry.nutrition.fat_g,
+          fiber_g: entry.nutrition.fiber_g,
+          sugar_g: entry.nutrition.sugar_g,
+          sodium_mg: entry.nutrition.sodium_mg,
+          notes: entry.notes
+        })
+      }
+
+      Alert.alert('Food logged', `${entry.food_name} was added to your diary.`)
+
+      router.push('/(tabs)/diary')
+    } catch (error) {
+      if (error instanceof ApiError) {
+        const firstValidationError = error.errors ? Object.values(error.errors).flat()[0] : null
+        const message = firstValidationError ?? error.message
+
+        setFormError(message)
+        Alert.alert('Could not log recent food', message)
+
+        return
+      }
+
+      setFormError('Could not log recent food. Please try again.')
+      Alert.alert('Could not log recent food', 'Please try again.')
+    } finally {
+      submittingRef.current = false
+      setQuickLoggingEntryId(null)
+    }
   }
 
   async function handleLogFood() {
@@ -329,6 +415,45 @@ export default function AddFoodScreen() {
           </View>
         ) : null}
       </View>
+
+      {recentEntries.length > 0 || loadingRecentEntries ? (
+        <View style={styles.quickEntryCard}>
+          <SectionHeader title="Recent foods" subtitle="Quickly log foods you added recently." />
+
+          {loadingRecentEntries ? (
+            <Text style={styles.loadingText}>Loading recent foods...</Text>
+          ) : (
+            <View style={styles.recentList}>
+              {recentEntries.map((entry) => (
+                <View key={entry.id} style={styles.recentCard}>
+                  <View style={styles.recentMain}>
+                    <Text style={styles.recentName}>{entry.food_name}</Text>
+
+                    <Text style={styles.recentMeta}>
+                      {entry.serving_label ? `${entry.quantity} × ${entry.serving_label}` : ''}
+                      {entry.total_grams ? ` • ${formatDecimal(entry.total_grams, 'g')}` : ''}
+                    </Text>
+
+                    <Text style={styles.recentCalories}>
+                      {formatNumber(entry.nutrition.calories)} kcal
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    style={styles.quickLogButton}
+                    disabled={quickLoggingEntryId === entry.id}
+                    onPress={() => handleQuickRelog(entry)}
+                  >
+                    <Text style={styles.quickLogButtonText}>
+                      {quickLoggingEntryId === entry.id ? 'Logging...' : 'Log'}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      ) : null}
 
       <View style={styles.quickEntryCard}>
         <View style={styles.quickEntryText}>
@@ -799,5 +924,49 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 14,
     lineHeight: 21
+  },
+  recentList: {
+    gap: 10
+  },
+  recentCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  recentMain: {
+    flex: 1,
+    gap: 3
+  },
+  recentName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900'
+  },
+  recentMeta: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 18
+  },
+  recentCalories: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  quickLogButton: {
+    borderRadius: 999,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+  quickLogButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900'
   }
 })

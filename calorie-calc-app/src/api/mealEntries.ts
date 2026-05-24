@@ -53,3 +53,9 @@ export function updateMealEntry(mealEntryId: number, payload: UpdateMealEntryPay
 export function deleteMealEntry(mealEntryId: number) {
   return apiClient.delete<null>(`/meal-entries/${mealEntryId}`)
 }
+
+export function getRecentMealEntries(limit = 10) {
+  return apiClient.get<{
+    meal_entries: MealEntry[]
+  }>(`/meal-entries/recent?limit=${limit}`)
+}

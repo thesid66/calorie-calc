@@ -14,9 +14,30 @@ use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Illuminate\Http\Request;
 
 class MealEntryController extends Controller
 {
+    public function recent(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'limit' => ['nullable', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        $limit = $validated['limit'] ?? 10;
+
+        $mealEntries = $request->user()
+            ->mealEntries()
+            ->with('food.servings')
+            ->latest('logged_for_date')
+            ->latest('created_at')
+            ->limit($limit)
+            ->get();
+
+        return ApiResponse::success([
+            'meal_entries' => MealEntryResource::collection($mealEntries),
+        ]);
+    }
     public function show(MealEntry $mealEntry): JsonResponse
     {
         $this->ensureUserOwnsMealEntry($mealEntry);
