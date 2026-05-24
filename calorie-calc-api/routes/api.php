@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BarcodeController;
 use App\Http\Controllers\Api\DiaryController;
 use App\Http\Controllers\Api\FoodController;
+use App\Http\Controllers\Api\FoodFavoriteController;
 use App\Http\Controllers\Api\MealEntryController;
 use App\Http\Controllers\Api\NutritionGoalController;
 use App\Http\Controllers\Api\ProfileController;
@@ -64,5 +65,9 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/barcodes/{barcode}', [BarcodeController::class, 'show']);
         Route::post('/barcodes/{barcode}/save-as-food', [BarcodeController::class, 'saveAsFood']);
+
+        Route::get('/food-favorites', [FoodFavoriteController::class, 'index']);
+        Route::post('/food-favorites/{food}', [FoodFavoriteController::class, 'store']);
+        Route::delete('/food-favorites/{food}', [FoodFavoriteController::class, 'destroy']);
     });
 });
