@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'rea
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
+import { deleteMealEntry } from '@/api/mealEntries'
 import { AppButton } from '@/components/ui/AppButton'
 import { Screen } from '@/components/ui/Screen'
 import { colors } from '@/constants/colors'
@@ -88,6 +89,7 @@ function progressPercent(current: number, target: number | null | undefined) {
 export default function DiaryScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [deletingEntryId, setDeletingEntryId] = useState<number | null>(null)
   const [selectedDate, setSelectedDate] = useState(todayDateString())
   const [diary, setDiary] = useState<Diary | null>(null)
 
@@ -114,6 +116,49 @@ export default function DiaryScreen() {
     } finally {
       setLoading(false)
       setRefreshing(false)
+    }
+  }
+
+  function confirmDeleteEntry(entry: MealEntry) {
+    const message = `Delete ${entry.food_name} from your diary?`
+
+    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      if (window.confirm(message)) {
+        handleDeleteEntry(entry.id)
+      }
+
+      return
+    }
+
+    Alert.alert('Delete meal entry?', message, [
+      {
+        text: 'Cancel',
+        style: 'cancel'
+      },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => handleDeleteEntry(entry.id)
+      }
+    ])
+  }
+
+  async function handleDeleteEntry(entryId: number) {
+    try {
+      setDeletingEntryId(entryId)
+
+      await deleteMealEntry(entryId)
+
+      await loadDiary(selectedDate)
+    } catch (error) {
+      if (error instanceof ApiError) {
+        Alert.alert('Could not delete entry', error.message)
+        return
+      }
+
+      Alert.alert('Could not delete entry', 'Please try again.')
+    } finally {
+      setDeletingEntryId(null)
     }
   }
 
@@ -269,7 +314,12 @@ export default function DiaryScreen() {
                 {entries.length > 0 ? (
                   <View style={styles.entryList}>
                     {entries.map((entry) => (
-                      <MealEntryCard key={entry.id} entry={entry} />
+                      <MealEntryCard
+                        key={entry.id}
+                        entry={entry}
+                        deleting={deletingEntryId === entry.id}
+                        onDelete={() => confirmDeleteEntry(entry)}
+                      />
                     ))}
                   </View>
                 ) : (
@@ -290,7 +340,15 @@ export default function DiaryScreen() {
   )
 }
 
-function MealEntryCard({ entry }: { entry: MealEntry }) {
+function MealEntryCard({
+  entry,
+  deleting,
+  onDelete
+}: {
+  entry: MealEntry
+  deleting: boolean
+  onDelete: () => void
+}) {
   return (
     <View style={styles.entryCard}>
       <View style={styles.entryMain}>
@@ -303,6 +361,10 @@ function MealEntryCard({ entry }: { entry: MealEntry }) {
         </Text>
 
         {entry.notes ? <Text style={styles.entryNotes}>{entry.notes}</Text> : null}
+
+        <Pressable style={styles.deleteButton} onPress={onDelete} disabled={deleting}>
+          <Text style={styles.deleteButtonText}>{deleting ? 'Deleting...' : 'Delete'}</Text>
+        </Pressable>
       </View>
 
       <View style={styles.entryRight}>
@@ -641,5 +703,20 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     fontWeight: '800'
+  },
+  deleteButton: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderRadius: 999,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  deleteButtonText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '900'
   }
 })

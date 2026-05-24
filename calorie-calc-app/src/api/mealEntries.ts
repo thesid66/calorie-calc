@@ -35,3 +35,7 @@ export function storeMealEntry(payload: StoreMealEntryPayload) {
     meal_entry: MealEntry
   }>('/meal-entries', payload)
 }
+
+export function deleteMealEntry(mealEntryId: number) {
+  return apiClient.delete<null>(`/meal-entries/${mealEntryId}`)
+}
