@@ -310,6 +310,21 @@ export default function AddFoodScreen() {
         />
       </View>
 
+      <View style={styles.quickEntryCard}>
+        <View style={styles.quickEntryText}>
+          <Text style={styles.quickEntryTitle}>Have a packaged food barcode?</Text>
+          <Text style={styles.quickEntrySubtitle}>
+            Look up the product from Open Food Facts and save it to your food database.
+          </Text>
+        </View>
+
+        <AppButton
+          title="Barcode lookup"
+          variant="secondary"
+          onPress={() => router.push('/meal/barcode')}
+        />
+      </View>
+
       {selectedFood ? (
         <View style={styles.selectedCard}>
           <View style={styles.selectedTop}>
