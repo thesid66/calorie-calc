@@ -26,17 +26,61 @@ class MealEntryController extends Controller
 
         $limit = $validated['limit'] ?? 10;
 
+        /**
+         * We fetch more than the final limit so we can remove duplicates
+         * while still returning enough recent unique foods.
+         */
         $mealEntries = $request->user()
             ->mealEntries()
             ->with('food.servings')
             ->latest('logged_for_date')
             ->latest('created_at')
-            ->limit($limit)
-            ->get();
+            ->limit($limit * 5)
+            ->get()
+            ->unique(fn (MealEntry $mealEntry) => $this->recentMealEntryKey($mealEntry))
+            ->values()
+            ->take($limit);
 
         return ApiResponse::success([
             'meal_entries' => MealEntryResource::collection($mealEntries),
         ]);
+    }
+
+    private function recentMealEntryKey(MealEntry $mealEntry): string
+    {
+        if ($mealEntry->food_id) {
+            return implode('|', [
+                'food',
+                $mealEntry->food_id,
+                $this->normaliseRecentValue($mealEntry->quantity),
+                $this->normaliseRecentValue($mealEntry->serving_label),
+                $this->normaliseRecentValue($mealEntry->serving_grams),
+                $this->normaliseRecentValue($mealEntry->total_grams),
+            ]);
+        }
+
+        return implode('|', [
+            'manual',
+            $this->normaliseRecentValue($mealEntry->food_name_snapshot),
+            $this->normaliseRecentValue($mealEntry->serving_label),
+            $this->normaliseRecentValue($mealEntry->calories),
+            $this->normaliseRecentValue($mealEntry->protein_g),
+            $this->normaliseRecentValue($mealEntry->carbs_g),
+            $this->normaliseRecentValue($mealEntry->fat_g),
+        ]);
+    }
+
+    private function normaliseRecentValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'null';
+        }
+
+        if (is_numeric($value)) {
+            return (string) round((float) $value, 2);
+        }
+
+        return strtolower(trim((string) $value));
     }
 
     public function show(MealEntry $mealEntry): JsonResponse
