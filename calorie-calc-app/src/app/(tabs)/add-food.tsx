@@ -1,4 +1,4 @@
-import { router } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
@@ -16,6 +16,22 @@ const mealOptions: { type: MealType; label: string }[] = [
   { type: 'dinner', label: 'Dinner' },
   { type: 'snack', label: 'Snack' }
 ]
+
+function getSingleParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0]
+  }
+
+  return value
+}
+
+function isMealTypeParam(value: string | undefined): value is MealType {
+  return ['breakfast', 'lunch', 'dinner', 'snack'].includes(value ?? '')
+}
+
+function isDateParam(value: string | undefined): value is string {
+  return !!value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
 
 function todayDateString() {
   const now = new Date()
@@ -85,6 +101,17 @@ function estimateCalories(
 }
 
 export default function AddFoodScreen() {
+  const params = useLocalSearchParams<{
+    date?: string | string[]
+    mealType?: string | string[]
+  }>()
+
+  const paramDate = getSingleParam(params.date)
+  const paramMealType = getSingleParam(params.mealType)
+
+  const initialLoggedForDate = isDateParam(paramDate) ? paramDate : todayDateString()
+  const initialMealType: MealType = isMealTypeParam(paramMealType) ? paramMealType : 'breakfast'
+
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const submittingRef = useRef(false)
 
@@ -95,8 +122,8 @@ export default function AddFoodScreen() {
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const [selectedServingId, setSelectedServingId] = useState<number | null>(null)
 
-  const [mealType, setMealType] = useState<MealType>('breakfast')
-  const [loggedForDate, setLoggedForDate] = useState(todayDateString())
+  const [mealType, setMealType] = useState<MealType>(initialMealType)
+  const [loggedForDate, setLoggedForDate] = useState(initialLoggedForDate)
   const [quantity, setQuantity] = useState('1')
   const [totalGrams, setTotalGrams] = useState('')
   const [notes, setNotes] = useState('')
@@ -157,6 +184,16 @@ export default function AddFoodScreen() {
       }
     }
   }, [search])
+
+  useEffect(() => {
+    if (isDateParam(paramDate)) {
+      setLoggedForDate(paramDate)
+    }
+
+    if (isMealTypeParam(paramMealType)) {
+      setMealType(paramMealType)
+    }
+  }, [paramDate, paramMealType])
 
   function selectFood(food: Food) {
     const defaultServing = getDefaultServing(food)
@@ -304,7 +341,15 @@ export default function AddFoodScreen() {
         <AppButton
           title="Manual quick entry"
           variant="secondary"
-          onPress={() => router.push('/meal/manual')}
+          onPress={() =>
+            router.push({
+              pathname: '/meal/manual',
+              params: {
+                date: loggedForDate,
+                mealType
+              }
+            })
+          }
         />
       </View>
 

@@ -173,6 +173,16 @@ export default function DiaryScreen() {
     setSelectedDate(todayDateString())
   }
 
+  function goToAddFood(selectedMealType?: MealType) {
+    router.push({
+      pathname: '/(tabs)/add-food',
+      params: {
+        date: selectedDate,
+        ...(selectedMealType ? { mealType: selectedMealType } : {})
+      }
+    })
+  }
+
   const summary = diary?.summary
   const target = diary?.target
 
@@ -277,7 +287,7 @@ export default function DiaryScreen() {
       </View>
 
       <View style={styles.actions}>
-        <AppButton title="Add food" onPress={() => router.push('/(tabs)/add-food')} />
+        <AppButton title="Add food" onPress={() => goToAddFood()} />
       </View>
 
       <View style={styles.section}>
@@ -301,7 +311,7 @@ export default function DiaryScreen() {
 
                   <View style={styles.mealHeaderRight}>
                     <Text style={styles.mealCalories}>{formatNumber(calories)} kcal</Text>
-                    <Pressable onPress={() => router.push('/(tabs)/add-food')}>
+                    <Pressable onPress={() => goToAddFood(mealType)}>
                       <Text style={styles.addMealLink}>Add</Text>
                     </Pressable>
                   </View>
