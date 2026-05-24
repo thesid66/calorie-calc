@@ -50,10 +50,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/meal-entries', [MealEntryController::class, 'store']);
         Route::get('/meal-entries/recent', [MealEntryController::class, 'recent']);
         Route::post('/meal-entries/copy-meal', [MealEntryController::class, 'copyMeal']);
+
         Route::get('/meal-entries/{mealEntry}', [MealEntryController::class, 'show']);
         Route::put('/meal-entries/{mealEntry}', [MealEntryController::class, 'update']);
         Route::delete('/meal-entries/{mealEntry}', [MealEntryController::class, 'destroy']);
-
+        Route::post('/meal-entries/copy-day', [MealEntryController::class, 'copyDay']);
         Route::get('/weight-logs', [WeightLogController::class, 'index']);
         Route::post('/weight-logs', [WeightLogController::class, 'store']);
         Route::get('/weight-logs/{weightLog}', [WeightLogController::class, 'show']);

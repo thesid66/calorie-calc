@@ -149,6 +149,65 @@ class MealEntryController extends Controller
         ], 'Meal copied successfully.', 201);
     }
 
+    public function copyDay(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'from_date' => ['required', 'date'],
+            'to_date' => ['required', 'date'],
+        ]);
+
+        if ($validated['from_date'] === $validated['to_date']) {
+            return ApiResponse::error('Source and target day cannot be the same.', 422);
+        }
+
+        $sourceEntries = $request->user()
+            ->mealEntries()
+            ->whereDate('logged_for_date', $validated['from_date'])
+            ->oldest('meal_type')
+            ->oldest('created_at')
+            ->get();
+
+        if ($sourceEntries->isEmpty()) {
+            return ApiResponse::success([
+                'copied_count' => 0,
+                'meal_entries' => [],
+            ], 'No meal entries found to copy.');
+        }
+
+        $copiedEntries = DB::transaction(function () use ($request, $sourceEntries, $validated) {
+            return $sourceEntries->map(function (MealEntry $sourceEntry) use ($request, $validated) {
+                return $request->user()->mealEntries()->create([
+                    'food_id' => $sourceEntry->food_id,
+                    'logged_for_date' => $validated['to_date'],
+                    'meal_type' => $sourceEntry->meal_type,
+
+                    'food_name_snapshot' => $sourceEntry->food_name_snapshot,
+                    'quantity' => $sourceEntry->quantity,
+                    'serving_label' => $sourceEntry->serving_label,
+                    'serving_grams' => $sourceEntry->serving_grams,
+                    'total_grams' => $sourceEntry->total_grams,
+
+                    'calories' => $sourceEntry->calories,
+                    'protein_g' => $sourceEntry->protein_g,
+                    'carbs_g' => $sourceEntry->carbs_g,
+                    'fat_g' => $sourceEntry->fat_g,
+                    'fiber_g' => $sourceEntry->fiber_g,
+                    'sugar_g' => $sourceEntry->sugar_g,
+                    'sodium_mg' => $sourceEntry->sodium_mg,
+
+                    'notes' => $sourceEntry->notes,
+                ]);
+            });
+        });
+
+        $copiedEntries->load('food.servings');
+
+        return ApiResponse::success([
+            'copied_count' => $copiedEntries->count(),
+            'meal_entries' => MealEntryResource::collection($copiedEntries),
+        ], 'Day copied successfully.', 201);
+    }
+
     public function show(MealEntry $mealEntry): JsonResponse
     {
         $this->ensureUserOwnsMealEntry($mealEntry);
