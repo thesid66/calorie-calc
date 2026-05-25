@@ -28,7 +28,7 @@ export function Screen({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {decorated ? (
-        <View pointerEvents="none" style={styles.decorLayer}>
+        <View style={[styles.decorLayer, styles.pointerNone]}>
           <View style={styles.decorOne} />
           <View style={styles.decorTwo} />
           <View style={styles.decorThree} />
@@ -67,6 +67,9 @@ const styles = StyleSheet.create({
   decorLayer: {
     ...StyleSheet.absoluteFill,
     overflow: 'hidden'
+  },
+  pointerNone: {
+    pointerEvents: 'none'
   },
   decorOne: {
     position: 'absolute',

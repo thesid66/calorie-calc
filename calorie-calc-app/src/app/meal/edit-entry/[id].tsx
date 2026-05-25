@@ -275,14 +275,18 @@ export default function EditMealEntryScreen() {
       let payload: UpdateMealEntryPayload
 
       if (isFoodMode()) {
+        const calculatedTotalGrams = hasFoodServing()
+          ? Number(entry.serving_grams) * toNumber(quantity)
+          : toNullableNumber(totalGrams)
+
         payload = {
           entry_mode: 'food',
           logged_for_date: loggedForDate.trim(),
           meal_type: mealType,
           food_id: Number(entry.food_id),
           food_serving_id: null,
-          quantity: hasFoodServing() ? toNumber(quantity) : null,
-          total_grams: hasFoodServing() ? null : toNullableNumber(totalGrams),
+          quantity: 1,
+          total_grams: calculatedTotalGrams,
           notes: notes.trim() || null
         }
       } else {

@@ -284,11 +284,6 @@ export default function ProgressScreen() {
 
     if (confirmed) {
       await handleDeleteWeightLog(log.id)
-
-      appToast.success({
-        title: 'Weight log deleted',
-        message: 'The weight log was removed.'
-      })
     }
   }
 
@@ -297,6 +292,12 @@ export default function ProgressScreen() {
       setDeletingLogId(logId)
 
       await deleteWeightLog(logId)
+
+      appToast.success({
+        title: 'Weight log deleted',
+        message: 'The weight log was removed.'
+      })
+
       await loadProgress()
     } catch (error) {
       if (error instanceof ApiError) {

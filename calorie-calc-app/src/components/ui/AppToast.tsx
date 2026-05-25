@@ -1,5 +1,5 @@
 import React from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import Toast, { ToastConfig, ToastConfigParams, ToastPosition } from 'react-native-toast-message'
 
 type AppToastKind = 'success' | 'error' | 'info' | 'warning'
@@ -141,14 +141,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#111827',
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    shadowOffset: {
-      width: 0,
-      height: 8
-    },
-    elevation: 8
+    ...Platform.select({
+      web: {
+        boxShadow: '0 8px 18px rgba(17, 24, 39, 0.14)'
+      },
+      default: {
+        shadowColor: '#111827',
+        shadowOpacity: 0.14,
+        shadowRadius: 18,
+        shadowOffset: {
+          width: 0,
+          height: 8
+        },
+        elevation: 8
+      }
+    })
   },
   toastPressed: {
     opacity: 0.92,

@@ -1,3 +1,5 @@
+import { Platform } from 'react-native'
+
 import { colors } from './colors'
 
 export const Colors = {
@@ -66,27 +68,42 @@ export const typography = {
 }
 
 export const shadows = {
-  sm: {
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 2
-  },
-  md: {
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 4
-  },
-  lg: {
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.16,
-    shadowRadius: 32,
-    elevation: 7
-  }
+  sm: Platform.select({
+    web: {
+      boxShadow: '0 4px 10px rgba(154, 107, 79, 0.08)'
+    },
+    default: {
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      elevation: 2
+    }
+  }),
+  md: Platform.select({
+    web: {
+      boxShadow: '0 10px 20px rgba(154, 107, 79, 0.12)'
+    },
+    default: {
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.12,
+      shadowRadius: 20,
+      elevation: 4
+    }
+  }),
+  lg: Platform.select({
+    web: {
+      boxShadow: '0 18px 32px rgba(154, 107, 79, 0.16)'
+    },
+    default: {
+      shadowColor: colors.shadow,
+      shadowOffset: { width: 0, height: 18 },
+      shadowOpacity: 0.16,
+      shadowRadius: 32,
+      elevation: 7
+    }
+  })
 }
 
 export const macroTones = {

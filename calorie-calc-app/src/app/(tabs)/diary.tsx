@@ -158,11 +158,6 @@ export default function DiaryScreen() {
 
     if (confirmed) {
       await handleDeleteEntry(entry.id)
-
-      appToast.success({
-        title: 'Entry deleted',
-        message: 'Meal entry was removed from your diary.'
-      })
     }
   }
 
@@ -171,6 +166,11 @@ export default function DiaryScreen() {
       setDeletingEntryId(entryId)
 
       await deleteMealEntry(entryId)
+
+      appToast.success({
+        title: 'Entry deleted',
+        message: 'Meal entry was removed from your diary.'
+      })
 
       await loadDiary(selectedDate)
     } catch (error) {
