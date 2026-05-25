@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router'
 import type { Href } from 'expo-router'
-import { HeaderBackButton } from 'expo-router/react-navigation'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { colors } from '@/constants/colors'
 
@@ -14,7 +14,15 @@ function SmartBackButton({ fallbackHref }: { fallbackHref: Href }) {
     router.replace(fallbackHref)
   }
 
-  return <HeaderBackButton onPress={handlePress} tintColor={colors.primary} label="Back" />
+  return (
+    <Pressable onPress={handlePress} style={styles.backButton}>
+      <View style={styles.backIcon}>
+        <Text style={styles.backIconText}>‹</Text>
+      </View>
+
+      <Text style={styles.backText}>Back</Text>
+    </Pressable>
+  )
 }
 
 export default function MealLayout() {
@@ -67,3 +75,32 @@ export default function MealLayout() {
     </Stack>
   )
 }
+
+const styles = StyleSheet.create({
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingRight: 12
+  },
+  backIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primarySoft
+  },
+  backIconText: {
+    color: colors.primary,
+    fontSize: 28,
+    fontWeight: '700',
+    lineHeight: 28,
+    marginTop: -2
+  },
+  backText: {
+    color: colors.primary,
+    fontSize: 16,
+    fontWeight: '800'
+  }
+})

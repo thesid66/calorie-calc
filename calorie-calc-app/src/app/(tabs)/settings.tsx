@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
@@ -9,18 +9,18 @@ import { getProfile, updateProfile } from '@/api/profile'
 import {
   AppButton,
   AppCard,
+  AppDatePicker,
   AppInput,
   Chip,
   ErrorCard,
   LoadingState,
-  Screen,
-  SectionHeader,
-  AppDatePicker
+  Screen
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
+import { useAuth } from '@/providers/AuthProvider'
 import type { GoalType, NutritionGoal } from '@/types/goals'
 import type { ActivityLevel, SexForFormula, UnitSystem, UserProfile } from '@/types/profile'
-import { useAuth } from '@/providers/AuthProvider'
 
 const sexOptions: { value: SexForFormula; label: string }[] = [
   { value: 'male', label: 'Male' },
@@ -80,6 +80,30 @@ function formatDecimal(value: number | string | null | undefined, suffix = '') {
   return `${Number(value).toFixed(1)}${suffix}`
 }
 
+function getInitials(name: string | null | undefined) {
+  if (!name) {
+    return 'U'
+  }
+
+  const parts = name.trim().split(' ').filter(Boolean)
+
+  if (parts.length === 0) {
+    return 'U'
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('')
+}
+
+function dateYearsAgo(years: number) {
+  const date = new Date()
+  date.setFullYear(date.getFullYear() - years)
+
+  return date
+}
+
 export default function SettingsScreen() {
   const { user, signOut } = useAuth()
 
@@ -110,6 +134,18 @@ export default function SettingsScreen() {
 
   const [profileError, setProfileError] = useState<string | null>(null)
   const [goalError, setGoalError] = useState<string | null>(null)
+
+  const accountInitials = useMemo(() => getInitials(user?.name), [user?.name])
+
+  const selectedActivityLevel = useMemo(
+    () => activityLevels.find((activityLevel) => activityLevel.id === activityLevelId) ?? null,
+    [activityLevelId, activityLevels]
+  )
+
+  const selectedGoal = useMemo(
+    () => goalOptions.find((option) => option.value === goalType) ?? goalOptions[1],
+    [goalType]
+  )
 
   useFocusEffect(
     useCallback(() => {
@@ -163,13 +199,6 @@ export default function SettingsScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
-
-  function dateYearsAgo(years: number) {
-    const date = new Date()
-    date.setFullYear(date.getFullYear() - years)
-
-    return date
   }
 
   function validateProfile(): string | null {
@@ -342,9 +371,10 @@ export default function SettingsScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Account centre</Text>
           <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>Manage your profile, goal and account.</Text>
+          <Text style={styles.subtitle}>Manage your profile, goal and account preferences.</Text>
         </View>
 
         <Pressable style={styles.refreshButton} onPress={loadSettings}>
@@ -352,23 +382,71 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
-      <AppCard style={styles.accountCard}>
-        <SectionHeader title="Account" subtitle="Current logged-in user" />
+      <View style={styles.accountHero}>
+        <View style={styles.heroBubbleOne} />
+        <View style={styles.heroBubbleTwo} />
 
-        <View style={styles.accountBox}>
-          <Text style={styles.label}>Name</Text>
-          <Text style={styles.name}>{user?.name ?? '-'}</Text>
-
-          <Text style={styles.label}>Email</Text>
-          <Text style={styles.email}>{user?.email ?? '-'}</Text>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{accountInitials}</Text>
         </View>
-      </AppCard>
 
-      <AppCard style={styles.card}>
-        <SectionHeader
-          title="Profile details"
-          subtitle="These details are used for BMR and calorie calculations."
+        <View style={styles.accountHeroCopy}>
+          <Text style={styles.accountName}>{user?.name ?? 'User'}</Text>
+          <Text style={styles.accountEmail}>{user?.email ?? '-'}</Text>
+
+          <View style={styles.accountMetaRow}>
+            <View style={styles.accountMetaPill}>
+              <Text style={styles.accountMetaText}>
+                {activeGoal ? activeGoal.goal_type.toUpperCase() : 'NO GOAL'}
+              </Text>
+            </View>
+
+            <View style={styles.accountMetaPill}>
+              <Text style={styles.accountMetaText}>{unitSystem.toUpperCase()}</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.summaryGrid}>
+        <SummaryMetric
+          label="Current"
+          value={formatDecimal(currentWeightKg, ' kg')}
+          color={colors.primary}
+          softColor={colors.primarySoft}
         />
+
+        <SummaryMetric
+          label="Target"
+          value={formatDecimal(targetWeightKg, ' kg')}
+          color={colors.success}
+          softColor={colors.successSoft}
+        />
+
+        <SummaryMetric
+          label="Calories"
+          value={formatNumber(activeGoal?.daily_calorie_target, ' kcal')}
+          color={colors.primary}
+          softColor={colors.caloriesSoft}
+        />
+
+        <SummaryMetric
+          label="Activity"
+          value={
+            selectedActivityLevel ? `×${formatDecimal(selectedActivityLevel.multiplier)}` : '-'
+          }
+          color={macroTones.protein.color}
+          softColor={macroTones.protein.soft}
+        />
+      </View>
+
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Profile details</Text>
+          <Text style={styles.cardSubtitle}>
+            These details are used for BMR and calorie calculations.
+          </Text>
+        </View>
 
         <View style={styles.form}>
           <AppDatePicker
@@ -448,16 +526,18 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <ErrorCard title="Please check profile" message={profileError} />
+        {profileError ? <ErrorCard title="Please check profile" message={profileError} /> : null}
 
         <AppButton title="Save profile" loading={profileSaving} onPress={handleSaveProfile} />
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <SectionHeader
-          title="Goal settings"
-          subtitle="Update your goal and recalculate daily calorie targets."
-        />
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Goal settings</Text>
+          <Text style={styles.cardSubtitle}>
+            Update your goal and recalculate daily calorie targets.
+          </Text>
+        </View>
 
         <View style={styles.optionBlock}>
           <Text style={styles.optionLabel}>Activity level</Text>
@@ -491,14 +571,18 @@ export default function SettingsScreen() {
                     ) : null}
                   </View>
 
-                  <Text
-                    style={[
-                      styles.activityMultiplier,
-                      selected ? styles.activityMultiplierSelected : null
-                    ]}
+                  <View
+                    style={[styles.multiplierPill, selected ? styles.multiplierPillSelected : null]}
                   >
-                    ×{formatDecimal(activityLevel.multiplier)}
-                  </Text>
+                    <Text
+                      style={[
+                        styles.activityMultiplier,
+                        selected ? styles.activityMultiplierSelected : null
+                      ]}
+                    >
+                      ×{formatDecimal(activityLevel.multiplier)}
+                    </Text>
+                  </View>
                 </Pressable>
               )
             })}
@@ -558,48 +642,111 @@ export default function SettingsScreen() {
           />
         )}
 
-        {activeGoal ? (
-          <AppCard variant="muted" style={styles.goalSummaryCard}>
-            <SectionHeader title="Current target" />
+        <View style={styles.goalPreviewCard}>
+          <View style={styles.goalPreviewHeader}>
+            <Text style={styles.goalPreviewTitle}>{selectedGoal.label} goal</Text>
+            <Text style={styles.goalPreviewText}>{selectedGoal.description}</Text>
+          </View>
 
+          {activeGoal ? (
             <View style={styles.targetGrid}>
               <TargetMetric
                 label="Calories"
                 value={formatNumber(activeGoal.daily_calorie_target, ' kcal')}
+                color={colors.primary}
+                softColor={colors.caloriesSoft}
               />
               <TargetMetric
                 label="Protein"
                 value={formatNumber(activeGoal.protein_target_g, ' g')}
+                color={macroTones.protein.color}
+                softColor={macroTones.protein.soft}
               />
-              <TargetMetric label="Carbs" value={formatNumber(activeGoal.carb_target_g, ' g')} />
-              <TargetMetric label="Fat" value={formatNumber(activeGoal.fat_target_g, ' g')} />
+              <TargetMetric
+                label="Carbs"
+                value={formatNumber(activeGoal.carb_target_g, ' g')}
+                color={macroTones.carbs.color}
+                softColor={macroTones.carbs.soft}
+              />
+              <TargetMetric
+                label="Fat"
+                value={formatNumber(activeGoal.fat_target_g, ' g')}
+                color={macroTones.fat.color}
+                softColor={macroTones.fat.soft}
+              />
             </View>
-          </AppCard>
-        ) : null}
+          ) : (
+            <Text style={styles.noGoalText}>Save your goal to calculate daily targets.</Text>
+          )}
+        </View>
 
-        <ErrorCard title="Please check goal" message={goalError} />
+        {goalError ? <ErrorCard title="Please check goal" message={goalError} /> : null}
 
         <AppButton title="Save goal" loading={goalSaving} onPress={handleSaveGoal} />
       </AppCard>
 
       {!profile ? (
-        <ErrorCard
-          title="Profile missing"
-          message="Your profile has not been created yet. Complete onboarding if profile saving fails."
-          variant="warning"
-        />
+        <View style={styles.warningSpacing}>
+          <ErrorCard
+            title="Profile missing"
+            message="Your profile has not been created yet. Complete onboarding if profile saving fails."
+            variant="warning"
+          />
+        </View>
       ) : null}
 
       <View style={styles.logoutSection}>
+        <View style={styles.logoutCopy}>
+          <Text style={styles.logoutTitle}>Account session</Text>
+          <Text style={styles.logoutText}>Logout from this device when you are finished.</Text>
+        </View>
+
         <AppButton title="Logout" variant="danger" onPress={handleLogout} />
       </View>
     </Screen>
   )
 }
 
-function TargetMetric({ label, value }: { label: string; value: string }) {
+function SummaryMetric({
+  label,
+  value,
+  color,
+  softColor
+}: {
+  label: string
+  value: string
+  color: string
+  softColor: string
+}) {
+  return (
+    <View style={styles.summaryMetric}>
+      <View style={[styles.summaryIcon, { backgroundColor: softColor }]}>
+        <View style={[styles.summaryDot, { backgroundColor: color }]} />
+      </View>
+
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  )
+}
+
+function TargetMetric({
+  label,
+  value,
+  color,
+  softColor
+}: {
+  label: string
+  value: string
+  color: string
+  softColor: string
+}) {
   return (
     <View style={styles.targetMetric}>
+      <View style={[styles.targetIcon, { backgroundColor: softColor }]}>
+        <View style={[styles.targetDot, { backgroundColor: color }]} />
+      </View>
+
       <Text style={styles.targetLabel}>{label}</Text>
       <Text style={styles.targetValue}>{value}</Text>
     </View>
@@ -608,96 +755,213 @@ function TargetMetric({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   header: {
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start'
   },
+  headerCopy: {
+    flex: 1,
+    paddingRight: spacing.md
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs
+  },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 4
+    marginTop: spacing.xs
   },
   refreshButton: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.sm
   },
   refreshText: {
     color: colors.primary,
     fontSize: 13,
-    fontWeight: '800'
+    fontWeight: '900'
   },
-  accountCard: {
-    marginBottom: 16
+  accountHero: {
+    backgroundColor: colors.primary,
+    borderRadius: radius['3xl'],
+    padding: spacing['2xl'],
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    gap: spacing.lg,
+    alignItems: 'center',
+    ...shadows.lg
+  },
+  heroBubbleOne: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    top: -60,
+    right: -45
+  },
+  heroBubbleTwo: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: -45,
+    left: -30
+  },
+  avatar: {
+    width: 66,
+    height: 66,
+    borderRadius: radius['2xl'],
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.28)'
+  },
+  avatarText: {
+    color: colors.white,
+    fontSize: 24,
+    fontWeight: '900'
+  },
+  accountHeroCopy: {
+    flex: 1,
+    gap: spacing.xs
+  },
+  accountName: {
+    color: colors.white,
+    fontSize: 22,
+    fontWeight: '900'
+  },
+  accountEmail: {
+    color: colors.primarySoft,
+    fontSize: 14,
+    fontWeight: '700'
+  },
+  accountMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs
+  },
+  accountMetaPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6
+  },
+  accountMetaText: {
+    color: colors.white,
+    fontSize: 11,
+    fontWeight: '900'
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.lg
+  },
+  summaryMetric: {
+    width: '48%',
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 4,
+    ...shadows.sm
+  },
+  summaryIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  summaryDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  summaryValue: {
+    color: colors.heading,
+    fontSize: 16,
+    fontWeight: '900'
   },
   card: {
-    marginBottom: 16
+    marginBottom: spacing.lg
   },
-  accountBox: {
-    gap: 5
+  cardHeader: {
+    gap: 3
   },
-  label: {
+  cardTitle: {
+    color: colors.heading,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  cardSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    fontWeight: '800'
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: '900',
-    color: colors.text,
-    marginBottom: 8
-  },
-  email: {
-    color: colors.muted,
-    fontSize: 15
+    fontWeight: '700',
+    lineHeight: 20
   },
   form: {
-    gap: 14
+    gap: spacing.md
   },
   optionBlock: {
-    gap: 10
+    gap: spacing.sm
   },
   optionLabel: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 14,
-    fontWeight: '800'
+    fontWeight: '900'
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
   twoColumn: {
     flexDirection: 'row',
-    gap: 12
+    gap: spacing.md
   },
   column: {
     flex: 1
   },
   activityList: {
-    gap: 10
+    gap: spacing.sm
   },
   activityCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.xl,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12
+    gap: spacing.md
   },
   activityCardSelected: {
     backgroundColor: colors.primary,
@@ -708,38 +972,48 @@ const styles = StyleSheet.create({
     gap: 3
   },
   activityName: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 15,
     fontWeight: '900'
   },
   activityNameSelected: {
-    color: '#FFFFFF'
+    color: colors.white
   },
   activityDescription: {
     color: colors.muted,
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 19,
+    fontWeight: '700'
   },
   activityDescriptionSelected: {
-    color: '#DCFCE7'
+    color: colors.primarySoft
+  },
+  multiplierPill: {
+    backgroundColor: colors.white,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7
+  },
+  multiplierPillSelected: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)'
   },
   activityMultiplier: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '900'
   },
   activityMultiplierSelected: {
-    color: '#FFFFFF'
+    color: colors.white
   },
   goalGrid: {
-    gap: 10
+    gap: spacing.sm
   },
   goalCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
-    padding: 14,
+    borderRadius: radius.xl,
+    padding: spacing.md,
     gap: 4
   },
   goalCardSelected: {
@@ -747,50 +1021,112 @@ const styles = StyleSheet.create({
     borderColor: colors.primary
   },
   goalTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 16,
     fontWeight: '900'
   },
   goalTitleSelected: {
-    color: '#FFFFFF'
+    color: colors.white
   },
   goalDescription: {
     color: colors.muted,
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 19,
+    fontWeight: '700'
   },
   goalDescriptionSelected: {
-    color: '#DCFCE7'
+    color: colors.primarySoft
   },
-  goalSummaryCard: {
-    padding: 14
+  goalPreviewCard: {
+    backgroundColor: colors.cardWarm,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
+    gap: spacing.md
+  },
+  goalPreviewHeader: {
+    gap: 3
+  },
+  goalPreviewTitle: {
+    color: colors.heading,
+    fontSize: 17,
+    fontWeight: '900'
+  },
+  goalPreviewText: {
+    color: colors.mutedDark,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700'
   },
   targetGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
   targetMetric: {
-    width: '47%',
-    backgroundColor: colors.card,
+    width: '48%',
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: radius.xl,
+    padding: spacing.md,
     gap: 4
+  },
+  targetIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  targetDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6
   },
   targetLabel: {
     color: colors.muted,
     fontSize: 12,
-    fontWeight: '800'
+    fontWeight: '900'
   },
   targetValue: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 16,
     fontWeight: '900'
   },
+  noGoalText: {
+    color: colors.mutedDark,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700'
+  },
+  warningSpacing: {
+    marginBottom: spacing.lg
+  },
   logoutSection: {
-    marginTop: 4,
-    marginBottom: 20
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+    ...shadows.sm
+  },
+  logoutCopy: {
+    gap: 3
+  },
+  logoutTitle: {
+    color: colors.heading,
+    fontSize: 17,
+    fontWeight: '900'
+  },
+  logoutText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700'
   }
 })
