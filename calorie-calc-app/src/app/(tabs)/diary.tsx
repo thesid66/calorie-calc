@@ -1,11 +1,18 @@
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useMemo, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
 import { copyDayEntries, copyMealEntries, deleteMealEntry } from '@/api/mealEntries'
-import { AppButton, AppCard, appToast, LoadingState, Screen } from '../../components/ui'
+import {
+  AppButton,
+  AppCard,
+  appToast,
+  LoadingState,
+  Screen,
+  useAppConfirm
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { Diary, MealEntry, MealType } from '@/types/diary'
@@ -110,6 +117,7 @@ export default function DiaryScreen() {
   const [copyingDay, setCopyingDay] = useState(false)
   const [selectedDate, setSelectedDate] = useState(todayDateString())
   const [diary, setDiary] = useState<Diary | null>(null)
+  const appConfirm = useAppConfirm()
 
   useFocusEffect(
     useCallback(() => {
@@ -140,28 +148,22 @@ export default function DiaryScreen() {
     }
   }
 
-  function confirmDeleteEntry(entry: MealEntry) {
-    const message = `Delete ${entry.food_name} from your diary?`
+  async function confirmDeleteEntry(entry: MealEntry) {
+    const confirmed = await appConfirm.danger({
+      title: 'Delete meal entry?',
+      message: `Delete ${entry.food_name} from your diary?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    })
 
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      if (window.confirm(message)) {
-        handleDeleteEntry(entry.id)
-      }
+    if (confirmed) {
+      await handleDeleteEntry(entry.id)
 
-      return
+      appToast.success({
+        title: 'Entry deleted',
+        message: 'Meal entry was removed from your diary.'
+      })
     }
-
-    Alert.alert('Delete meal entry?', message, [
-      {
-        text: 'Cancel',
-        style: 'cancel'
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => handleDeleteEntry(entry.id)
-      }
-    ])
   }
 
   async function handleDeleteEntry(entryId: number) {

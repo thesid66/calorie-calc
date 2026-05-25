@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getNutritionProgress, getProgressOverview, getWeightProgress } from '@/api/progress'
@@ -14,7 +14,8 @@ import {
   Chip,
   ErrorCard,
   LoadingState,
-  Screen
+  Screen,
+  useAppConfirm
 } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
@@ -151,6 +152,8 @@ export default function ProgressScreen() {
   const [deletingLogId, setDeletingLogId] = useState<number | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
 
+  const appConfirm = useAppConfirm()
+
   const range = useMemo(
     () => ({
       from: dateDaysAgo(selectedRangeDays),
@@ -271,28 +274,22 @@ export default function ProgressScreen() {
     }
   }
 
-  function confirmDeleteWeightLog(log: WeightLog) {
-    const message = `Delete weight log from ${log.logged_on}?`
+  async function confirmDeleteWeightLog(log: WeightLog) {
+    const confirmed = await appConfirm.danger({
+      title: 'Delete weight log?',
+      message: `Delete weight log from ${log.logged_on}?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    })
 
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      if (window.confirm(message)) {
-        handleDeleteWeightLog(log.id)
-      }
+    if (confirmed) {
+      await handleDeleteWeightLog(log.id)
 
-      return
+      appToast.success({
+        title: 'Weight log deleted',
+        message: 'The weight log was removed.'
+      })
     }
-
-    Alert.alert('Delete weight log?', message, [
-      {
-        text: 'Cancel',
-        style: 'cancel'
-      },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => handleDeleteWeightLog(log.id)
-      }
-    ])
   }
 
   async function handleDeleteWeightLog(logId: number) {
