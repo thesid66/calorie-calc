@@ -8,15 +8,15 @@ import { deleteWeightLog, getWeightLogs, storeWeightLog } from '@/api/weightLogs
 import {
   AppButton,
   AppCard,
+  AppDatePicker,
   AppInput,
   Chip,
   ErrorCard,
   LoadingState,
-  Screen,
-  SectionHeader,
-  AppDatePicker
+  Screen
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type {
   NutritionProgressPoint,
   ProgressOverview,
@@ -122,6 +122,14 @@ function formatShortDate(dateString: string) {
   return `${day}/${month}`
 }
 
+function formatReadableDate(dateString: string) {
+  return new Intl.DateTimeFormat('en', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(`${dateString}T00:00:00`))
+}
+
 export default function ProgressScreen() {
   const submittingRef = useRef(false)
 
@@ -172,6 +180,8 @@ export default function ProgressScreen() {
         getNutritionProgress(range)
       ])
 
+      setOverview(overviewResponse.data)
+      setWeightLogs(weightLogsResponse.data.weight_logs)
       setWeightSeries(weightProgressResponse.data.series)
       setNutritionSeries(nutritionProgressResponse.data.series)
 
@@ -309,12 +319,14 @@ export default function ProgressScreen() {
 
   const weight = overview?.weight
   const nutrition = overview?.nutrition
+  const goal = overview?.goal
   const progressToTarget = progressPercent(weight?.progress_to_target_percent)
 
   return (
     <Screen>
       <View style={styles.header}>
-        <View>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Body progress</Text>
           <Text style={styles.title}>Progress</Text>
           <Text style={styles.subtitle}>Track weight changes and nutrition trends over time.</Text>
         </View>
@@ -324,8 +336,13 @@ export default function ProgressScreen() {
         </Pressable>
       </View>
 
-      <AppCard style={styles.rangeCard}>
-        <SectionHeader title="Range" subtitle={`${range.from} to ${range.to}`} />
+      <AppCard gap={16} style={styles.rangeCard}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Range</Text>
+          <Text style={styles.cardSubtitle}>
+            {formatReadableDate(range.from)} to {formatReadableDate(range.to)}
+          </Text>
+        </View>
 
         <View style={styles.chipRow}>
           {rangeOptions.map((option) => (
@@ -339,7 +356,10 @@ export default function ProgressScreen() {
         </View>
       </AppCard>
 
-      <AppCard variant="primary" style={styles.heroCard}>
+      <View style={styles.heroCard}>
+        <View style={styles.heroBubbleOne} />
+        <View style={styles.heroBubbleTwo} />
+
         <Text style={styles.heroLabel}>Current weight</Text>
         <Text style={styles.heroValue}>{formatDecimal(weight?.current_weight_kg, ' kg')}</Text>
 
@@ -352,30 +372,44 @@ export default function ProgressScreen() {
           <View style={[styles.progressFill, { width: `${progressToTarget}%` }]} />
         </View>
 
-        <Text style={styles.heroSubtext}>
-          {formatNumber(weight?.progress_to_target_percent, '%')} to target
-        </Text>
-      </AppCard>
+        <View style={styles.heroFooter}>
+          <Text style={styles.heroFooterText}>
+            {formatNumber(weight?.progress_to_target_percent, '%')} to target
+          </Text>
+
+          {weight?.latest_logged_on ? (
+            <Text style={styles.heroFooterText}>
+              Updated {formatShortDate(weight.latest_logged_on)}
+            </Text>
+          ) : null}
+        </View>
+      </View>
 
       <View style={styles.metricGrid}>
         <MetricCard
           label="Overall change"
           value={formatSignedDecimal(weight?.overall_change_kg, ' kg')}
+          helper="Since starting"
+          tone="primary"
         />
 
         <MetricCard
           label="Range change"
           value={formatSignedDecimal(weight?.change_in_range_kg, ' kg')}
+          helper={`${selectedRangeDays} day view`}
+          tone="success"
         />
       </View>
 
       <WeightTrendCard series={weightSeries} />
 
-      <AppCard>
-        <SectionHeader
-          title="Log weight"
-          subtitle="One weight log per date. Saving again for the same date updates it."
-        />
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Log weight</Text>
+          <Text style={styles.cardSubtitle}>
+            One weight log per date. Saving again for the same date updates it.
+          </Text>
+        </View>
 
         <View style={styles.form}>
           <AppDatePicker
@@ -403,24 +437,19 @@ export default function ProgressScreen() {
           />
         </View>
 
-        <ErrorCard title="Please check weight log" message={formError} />
+        {formError ? <ErrorCard title="Please check weight log" message={formError} /> : null}
 
         <AppButton title="Save weight log" loading={saving} onPress={handleSaveWeightLog} />
       </AppCard>
 
       <View style={styles.section}>
-        <SectionHeader
-          title="Weight history"
-          subtitle={`${weightLogs.length} logs in selected range`}
-        />
-
-        <NutritionTrendCard
-          series={nutritionSeries}
-          calorieTarget={overview?.goal?.daily_calorie_target ?? null}
-        />
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Weight history</Text>
+          <Text style={styles.sectionSubtitle}>{weightLogs.length} logs in selected range</Text>
+        </View>
 
         {weightLogs.length === 0 ? (
-          <AppCard variant="muted">
+          <AppCard style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No weight logs yet</Text>
             <Text style={styles.emptyText}>
               Save your first weight log above to start tracking your progress.
@@ -435,7 +464,7 @@ export default function ProgressScreen() {
                 <AppCard key={log.id} style={styles.logCard}>
                   <View style={styles.logRow}>
                     <View style={styles.logMain}>
-                      <Text style={styles.logDate}>{log.logged_on}</Text>
+                      <Text style={styles.logDate}>{formatReadableDate(log.logged_on)}</Text>
                       <Text style={styles.logWeight}>{formatDecimal(log.weight_kg, ' kg')}</Text>
 
                       {log.notes ? <Text style={styles.logNotes}>{log.notes}</Text> : null}
@@ -457,18 +486,30 @@ export default function ProgressScreen() {
         )}
       </View>
 
+      <NutritionTrendCard
+        series={nutritionSeries}
+        calorieTarget={goal?.daily_calorie_target ?? null}
+      />
+
       <View style={styles.section}>
-        <SectionHeader title="Nutrition trend" subtitle="Average intake for the selected range" />
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Nutrition average</Text>
+          <Text style={styles.sectionSubtitle}>Average intake for the selected range</Text>
+        </View>
 
         <View style={styles.metricGrid}>
           <MetricCard
             label="Avg calories"
             value={formatNumber(nutrition?.daily_average.calories, ' kcal')}
+            helper={goal ? `Target ${goal.daily_calorie_target} kcal` : 'Daily average'}
+            tone="calories"
           />
 
           <MetricCard
             label="Avg protein"
             value={formatNumber(nutrition?.daily_average.protein_g, ' g')}
+            helper={goal ? `Target ${goal.protein_target_g}g` : 'Daily average'}
+            tone="protein"
           />
         </View>
 
@@ -476,21 +517,63 @@ export default function ProgressScreen() {
           <MetricCard
             label="Avg carbs"
             value={formatNumber(nutrition?.daily_average.carbs_g, ' g')}
+            helper={goal ? `Target ${goal.carb_target_g}g` : 'Daily average'}
+            tone="carbs"
           />
 
-          <MetricCard label="Avg fat" value={formatNumber(nutrition?.daily_average.fat_g, ' g')} />
+          <MetricCard
+            label="Avg fat"
+            value={formatNumber(nutrition?.daily_average.fat_g, ' g')}
+            helper={goal ? `Target ${goal.fat_target_g}g` : 'Daily average'}
+            tone="fat"
+          />
         </View>
       </View>
     </Screen>
   )
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  helper,
+  tone
+}: {
+  label: string
+  value: string
+  helper: string
+  tone: 'primary' | 'success' | 'calories' | 'protein' | 'carbs' | 'fat'
+}) {
+  const toneMap = {
+    primary: {
+      color: colors.primary,
+      soft: colors.primarySoft
+    },
+    success: {
+      color: colors.success,
+      soft: colors.successSoft
+    },
+    calories: {
+      color: colors.primary,
+      soft: colors.caloriesSoft
+    },
+    protein: macroTones.protein,
+    carbs: macroTones.carbs,
+    fat: macroTones.fat
+  }
+
+  const selectedTone = toneMap[tone]
+
   return (
-    <AppCard style={styles.metricCard}>
+    <View style={styles.metricCard}>
+      <View style={[styles.metricIcon, { backgroundColor: selectedTone.soft }]}>
+        <View style={[styles.metricDot, { backgroundColor: selectedTone.color }]} />
+      </View>
+
       <Text style={styles.metricLabel}>{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
-    </AppCard>
+      <Text style={styles.metricHelper}>{helper}</Text>
+    </View>
   )
 }
 
@@ -501,15 +584,15 @@ function WeightTrendCard({ series }: { series: WeightProgressPoint[] }) {
   const maxWeight = weights.length > 0 ? Math.max(...weights) : 0
 
   return (
-    <AppCard style={styles.trendCard}>
-      <SectionHeader
-        title="Weight trend"
-        subtitle={
-          series.length > 1
+    <AppCard gap={16} style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>Weight trend</Text>
+        <Text style={styles.cardSubtitle}>
+          {series.length > 1
             ? `${series.length} weight points in selected range`
-            : 'Add more weight logs to see your trend'
-        }
-      />
+            : 'Add more weight logs to see your trend'}
+        </Text>
+      </View>
 
       {chartSeries.length > 1 ? (
         <>
@@ -568,15 +651,15 @@ function NutritionTrendCard({
   const maxCalories = calories.length > 0 ? Math.max(...calories, calorieTarget ?? 0) : 0
 
   return (
-    <AppCard style={styles.trendCard}>
-      <SectionHeader
-        title="Calories trend"
-        subtitle={
-          nonEmptySeries.length > 0
+    <AppCard gap={16} style={styles.card}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardTitle}>Calories trend</Text>
+        <Text style={styles.cardSubtitle}>
+          {nonEmptySeries.length > 0
             ? `${nonEmptySeries.length} logged nutrition days in selected range`
-            : 'Log meals to see calorie trends'
-        }
-      />
+            : 'Log meals to see calorie trends'}
+        </Text>
+      </View>
 
       {chartSeries.length > 0 ? (
         <>
@@ -623,120 +706,228 @@ function NutritionTrendCard({
 
 const styles = StyleSheet.create({
   header: {
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start'
   },
+  headerCopy: {
+    flex: 1,
+    paddingRight: spacing.md
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs
+  },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 4
+    marginTop: spacing.xs
   },
   refreshButton: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.sm
   },
   refreshText: {
     color: colors.primary,
     fontSize: 13,
-    fontWeight: '800'
+    fontWeight: '900'
   },
   rangeCard: {
-    marginBottom: 16
+    marginBottom: spacing.lg
+  },
+  card: {
+    marginBottom: spacing.lg
+  },
+  cardHeader: {
+    gap: 3
+  },
+  cardTitle: {
+    color: colors.heading,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  cardSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
   heroCard: {
-    marginBottom: 16
+    backgroundColor: colors.primary,
+    borderRadius: radius['3xl'],
+    padding: spacing['2xl'],
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    gap: spacing.sm,
+    ...shadows.lg
+  },
+  heroBubbleOne: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    top: -60,
+    right: -45
+  },
+  heroBubbleTwo: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: -45,
+    left: -30
   },
   heroLabel: {
-    color: '#DCFCE7',
+    color: colors.primarySoft,
     fontSize: 15,
-    fontWeight: '800'
-  },
-  heroValue: {
-    color: '#FFFFFF',
-    fontSize: 46,
     fontWeight: '900'
   },
+  heroValue: {
+    color: colors.white,
+    fontSize: 48,
+    fontWeight: '900',
+    letterSpacing: -1
+  },
   heroSubtext: {
-    color: '#DCFCE7',
+    color: colors.primarySoft,
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20
   },
   progressTrack: {
-    height: 10,
-    backgroundColor: '#DCFCE7',
-    borderRadius: 999,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    marginTop: 4
+    marginTop: spacing.sm
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999
+    backgroundColor: colors.white,
+    borderRadius: radius.pill
+  },
+  heroFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.xs
+  },
+  heroFooterText: {
+    color: colors.primarySoft,
+    fontSize: 13,
+    fontWeight: '900'
   },
   metricGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginBottom: spacing.lg
   },
   metricCard: {
-    flex: 1
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: 4,
+    ...shadows.sm
+  },
+  metricIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  metricDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6
   },
   metricLabel: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800'
+    fontSize: 12,
+    fontWeight: '900'
   },
   metricValue: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 24,
     fontWeight: '900'
   },
+  metricHelper: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17
+  },
   form: {
-    gap: 14
+    gap: spacing.md
   },
   section: {
-    gap: 12,
-    marginTop: 20
+    gap: spacing.md,
+    marginBottom: spacing.lg
+  },
+  sectionHeader: {
+    gap: 3
+  },
+  sectionTitle: {
+    color: colors.heading,
+    fontSize: 20,
+    fontWeight: '900'
+  },
+  sectionSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  emptyCard: {
+    gap: spacing.xs
   },
   emptyTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 16,
     fontWeight: '900'
   },
   emptyText: {
     color: colors.muted,
     fontSize: 14,
-    lineHeight: 21
+    lineHeight: 21,
+    fontWeight: '700'
   },
   logList: {
-    gap: 10
+    gap: spacing.sm
   },
   logCard: {
-    padding: 14
+    padding: spacing.md
   },
   logRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 14,
+    gap: spacing.md,
     alignItems: 'flex-start'
   },
   logMain: {
@@ -749,37 +940,35 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   logWeight: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 22,
     fontWeight: '900'
   },
   logNotes: {
     color: colors.muted,
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 19,
+    fontWeight: '700'
   },
   deleteButton: {
-    borderRadius: 999,
-    backgroundColor: '#FEF2F2',
+    borderRadius: radius.pill,
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
     borderColor: '#FECACA',
-    paddingHorizontal: 10,
-    paddingVertical: 6
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7
   },
   deleteButtonText: {
     color: colors.danger,
     fontSize: 12,
     fontWeight: '900'
   },
-  trendCard: {
-    marginBottom: 16
-  },
   chartWrapper: {
     height: 150,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 6,
-    marginTop: 4
+    marginTop: spacing.xs
   },
   chartItem: {
     flex: 1,
@@ -789,22 +978,22 @@ const styles = StyleSheet.create({
   chartBarTrack: {
     flex: 1,
     justifyContent: 'flex-end',
-    borderRadius: 999,
-    backgroundColor: '#F1F5F9',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
     overflow: 'hidden'
   },
   weightChartBar: {
     width: '100%',
-    borderRadius: 999,
+    borderRadius: radius.pill,
     backgroundColor: colors.primary
   },
   calorieChartBar: {
     width: '100%',
-    borderRadius: 999,
+    borderRadius: radius.pill,
     backgroundColor: colors.warning
   },
   chartLabels: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     flexDirection: 'row',
     justifyContent: 'space-between'
   },
@@ -816,10 +1005,10 @@ const styles = StyleSheet.create({
   chartSummaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8
+    marginTop: spacing.sm
   },
   chartSummaryText: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 13,
     fontWeight: '900'
   },
@@ -827,14 +1016,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     lineHeight: 19,
-    marginTop: 8,
+    marginTop: spacing.sm,
     fontWeight: '700'
   },
   emptyChartCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14
+    padding: spacing.md
   }
 })

@@ -5,8 +5,9 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
 import { copyDayEntries, copyMealEntries, deleteMealEntry } from '@/api/mealEntries'
-import { AppButton, LoadingState, Screen } from '@/components/ui'
+import { AppButton, AppCard, LoadingState, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { Diary, MealEntry, MealType } from '@/types/diary'
 
 const mealLabels: Record<MealType, string> = {
@@ -83,6 +84,22 @@ function progressPercent(current: number, target: number | null | undefined) {
   const percent = (current / target) * 100
 
   return Math.min(Math.max(percent, 0), 100)
+}
+
+function formatReadableDate(dateString: string) {
+  return new Intl.DateTimeFormat('en', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'short'
+  }).format(new Date(`${dateString}T00:00:00`))
+}
+
+function getRemainingLabel(remaining: number) {
+  if (remaining < 0) {
+    return 'kcal over target'
+  }
+
+  return 'kcal remaining'
 }
 
 export default function DiaryScreen() {
@@ -264,6 +281,14 @@ export default function DiaryScreen() {
     [caloriesConsumed, calorieTarget]
   )
 
+  const loggedMealsCount = mealOrder.filter((mealType) => {
+    return (diary?.meals[mealType].length ?? 0) > 0
+  }).length
+
+  const totalEntries = mealOrder.reduce((total, mealType) => {
+    return total + (diary?.meals[mealType].length ?? 0)
+  }, 0)
+
   if (loading) {
     return (
       <Screen scroll={false}>
@@ -275,9 +300,10 @@ export default function DiaryScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Diary</Text>
-          <Text style={styles.subtitle}>Track your meals and daily nutrition.</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Daily diary</Text>
+          <Text style={styles.title}>Track your meals</Text>
+          <Text style={styles.subtitle}>Review today’s food, macros and meal balance.</Text>
         </View>
 
         <Pressable style={styles.refreshButton} onPress={() => loadDiary(selectedDate)}>
@@ -291,6 +317,7 @@ export default function DiaryScreen() {
         </Pressable>
 
         <View style={styles.dateCenter}>
+          <Text style={styles.dateReadable}>{formatReadableDate(selectedDate)}</Text>
           <Text style={styles.dateLabel}>{selectedDate}</Text>
 
           {selectedDate !== todayDateString() ? (
@@ -308,27 +335,43 @@ export default function DiaryScreen() {
       </View>
 
       {!target ? (
-        <View style={styles.warningCard}>
+        <AppCard variant="warning" style={styles.warningCard}>
           <Text style={styles.warningTitle}>No active goal found</Text>
           <Text style={styles.warningText}>
             Complete your goal setup to compare your diary against calorie and macro targets.
           </Text>
 
           <AppButton title="Set up goal" onPress={() => router.push('/onboarding/goal')} />
-        </View>
+        </AppCard>
       ) : null}
 
       <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Calories</Text>
-        <Text style={styles.summaryValue}>
-          {formatNumber(caloriesConsumed)}
-          <Text style={styles.summaryTarget}> / {formatNumber(calorieTarget)} kcal</Text>
-        </Text>
+        <View style={styles.summaryGlowOne} />
+        <View style={styles.summaryGlowTwo} />
 
-        <Text style={styles.summarySubtext}>{formatNumber(caloriesRemaining)} kcal remaining</Text>
+        <View style={styles.summaryTop}>
+          <View>
+            <Text style={styles.summaryLabel}>Calories</Text>
+            <Text style={styles.summaryValue}>{formatNumber(caloriesConsumed)}</Text>
+            <Text style={styles.summarySubtext}>
+              {formatNumber(Math.abs(caloriesRemaining))} {getRemainingLabel(caloriesRemaining)}
+            </Text>
+          </View>
+
+          <View style={styles.summaryBadge}>
+            <Text style={styles.summaryBadgeValue}>{Math.round(calorieProgress)}%</Text>
+            <Text style={styles.summaryBadgeLabel}>used</Text>
+          </View>
+        </View>
 
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${calorieProgress}%` }]} />
+        </View>
+
+        <View style={styles.summaryStats}>
+          <SummaryStat label="Target" value={formatNumber(calorieTarget, ' kcal')} />
+          <SummaryStat label="Entries" value={`${totalEntries}`} />
+          <SummaryStat label="Meals" value={`${loggedMealsCount}/4`} />
         </View>
       </View>
 
@@ -338,6 +381,7 @@ export default function DiaryScreen() {
           consumed={summary?.protein_g ?? 0}
           target={target?.protein_target_g ?? 0}
           unit="g"
+          tone={macroTones.protein}
         />
 
         <MacroCard
@@ -345,6 +389,7 @@ export default function DiaryScreen() {
           consumed={summary?.carbs_g ?? 0}
           target={target?.carb_target_g ?? 0}
           unit="g"
+          tone={macroTones.carbs}
         />
 
         <MacroCard
@@ -352,104 +397,182 @@ export default function DiaryScreen() {
           consumed={summary?.fat_g ?? 0}
           target={target?.fat_target_g ?? 0}
           unit="g"
+          tone={macroTones.fat}
         />
       </View>
 
-      <View style={styles.actions}>
-        <AppButton title="Add food" onPress={() => goToAddFood()} />
+      <View style={styles.actionGrid}>
+        <QuickAction
+          title="Add food"
+          subtitle="Search or favourite"
+          icon="+"
+          onPress={() => goToAddFood()}
+        />
 
-        <AppButton
-          title={copyingDay ? 'Copying yesterday...' : 'Copy yesterday'}
-          variant="secondary"
-          loading={copyingDay}
+        <QuickAction
+          title={copyingDay ? 'Copying...' : 'Copy day'}
+          subtitle="Use yesterday"
+          icon="↺"
+          disabled={copyingDay}
           onPress={handleCopyPreviousDay}
         />
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Meals</Text>
+      <View style={styles.sectionHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>Meals</Text>
+          <Text style={styles.sectionSubtitle}>
+            {loggedMealsCount}/4 meal slots logged • {totalEntries} entries
+          </Text>
+        </View>
+      </View>
 
-        <View style={styles.mealList}>
-          {mealOrder.map((mealType) => {
-            const entries = diary?.meals[mealType] ?? []
-            const calories = mealCalories(entries)
-            const macros = mealMacros(entries)
+      <View style={styles.mealList}>
+        {mealOrder.map((mealType) => {
+          const entries = diary?.meals[mealType] ?? []
+          const calories = mealCalories(entries)
+          const macros = mealMacros(entries)
+          const tone = mealTones[mealType]
 
-            return (
-              <View key={mealType} style={styles.mealCard}>
-                <View style={styles.mealHeader}>
-                  <View>
-                    <Text style={styles.mealTitle}>{mealLabels[mealType]}</Text>
+          return (
+            <View key={mealType} style={styles.mealCard}>
+              <View style={styles.mealHeader}>
+                <View style={styles.mealHeaderLeft}>
+                  <View style={[styles.mealIcon, { backgroundColor: tone.soft }]}>
+                    <Text style={styles.mealEmoji}>{tone.emoji}</Text>
+                  </View>
+
+                  <View style={styles.mealTitleWrap}>
+                    <Text style={styles.mealTitle}>{tone.label}</Text>
                     <Text style={styles.mealSubtitle}>
                       {entries.length === 1 ? '1 item' : `${entries.length} items`}
                     </Text>
                   </View>
-
-                  <View style={styles.mealHeaderRight}>
-                    <Text style={styles.mealCalories}>{formatNumber(calories)} kcal</Text>
-
-                    <View style={styles.mealActionLinks}>
-                      <Pressable
-                        disabled={copyingMealType === mealType}
-                        onPress={() => handleCopyPreviousMeal(mealType)}
-                      >
-                        <Text style={styles.copyMealLink}>
-                          {copyingMealType === mealType ? 'Copying...' : 'Copy yesterday'}
-                        </Text>
-                      </Pressable>
-
-                      <Pressable onPress={() => goToAddFood(mealType)}>
-                        <Text style={styles.addMealLink}>Add</Text>
-                      </Pressable>
-                    </View>
-                  </View>
                 </View>
 
-                {entries.length > 0 ? (
-                  <View style={styles.entryList}>
-                    {entries.map((entry) => (
-                      <MealEntryCard
-                        key={entry.id}
-                        entry={entry}
-                        deleting={deletingEntryId === entry.id}
-                        onDelete={() => confirmDeleteEntry(entry)}
-                        onEdit={() =>
-                          router.push({
-                            pathname: '/meal/edit-entry/[id]',
-                            params: {
-                              id: String(entry.id)
-                            }
-                          })
-                        }
-                      />
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.emptyText}>No food logged yet.</Text>
-                )}
-
-                <View style={styles.mealMacroRow}>
-                  <Text style={styles.mealMacroText}>P {formatDecimal(macros.protein_g, 'g')}</Text>
-                  <Text style={styles.mealMacroText}>C {formatDecimal(macros.carbs_g, 'g')}</Text>
-                  <Text style={styles.mealMacroText}>F {formatDecimal(macros.fat_g, 'g')}</Text>
+                <View style={styles.mealCaloriesWrap}>
+                  <Text style={[styles.mealCalories, { color: tone.color }]}>
+                    {formatNumber(calories)}
+                  </Text>
+                  <Text style={styles.mealCaloriesLabel}>kcal</Text>
                 </View>
               </View>
-            )
-          })}
-        </View>
+
+              <View style={styles.mealActionRow}>
+                <Pressable
+                  style={[styles.mealPillButton, { backgroundColor: tone.soft }]}
+                  onPress={() => goToAddFood(mealType)}
+                >
+                  <Text style={[styles.mealPillText, { color: tone.color }]}>Add food</Text>
+                </Pressable>
+
+                <Pressable
+                  disabled={copyingMealType === mealType}
+                  style={styles.copyPillButton}
+                  onPress={() => handleCopyPreviousMeal(mealType)}
+                >
+                  <Text style={styles.copyPillText}>
+                    {copyingMealType === mealType ? 'Copying...' : 'Copy yesterday'}
+                  </Text>
+                </Pressable>
+              </View>
+
+              {entries.length > 0 ? (
+                <View style={styles.entryList}>
+                  {entries.map((entry) => (
+                    <MealEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      deleting={deletingEntryId === entry.id}
+                      toneColor={tone.color}
+                      onDelete={() => confirmDeleteEntry(entry)}
+                      onEdit={() =>
+                        router.push({
+                          pathname: '/meal/edit-entry/[id]',
+                          params: {
+                            id: String(entry.id)
+                          }
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyMealBox}>
+                  <Text style={styles.emptyMealTitle}>Nothing logged yet</Text>
+                  <Text style={styles.emptyMealText}>
+                    Add food to this meal or copy yesterday’s {tone.label.toLowerCase()}.
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.mealMacroRow}>
+                <MealMacro
+                  label="Protein"
+                  value={macros.protein_g}
+                  color={macroTones.protein.color}
+                />
+                <MealMacro label="Carbs" value={macros.carbs_g} color={macroTones.carbs.color} />
+                <MealMacro label="Fat" value={macros.fat_g} color={macroTones.fat.color} />
+              </View>
+            </View>
+          )
+        })}
       </View>
     </Screen>
+  )
+}
+
+function SummaryStat({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryStat}>
+      <Text style={styles.summaryStatLabel}>{label}</Text>
+      <Text style={styles.summaryStatValue}>{value}</Text>
+    </View>
+  )
+}
+
+function QuickAction({
+  title,
+  subtitle,
+  icon,
+  disabled = false,
+  onPress
+}: {
+  title: string
+  subtitle: string
+  icon: string
+  disabled?: boolean
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      disabled={disabled}
+      style={[styles.quickAction, disabled ? styles.quickActionDisabled : null]}
+      onPress={onPress}
+    >
+      <View style={styles.quickIcon}>
+        <Text style={styles.quickIconText}>{icon}</Text>
+      </View>
+
+      <View style={styles.quickCopy}>
+        <Text style={styles.quickTitle}>{title}</Text>
+        <Text style={styles.quickSubtitle}>{subtitle}</Text>
+      </View>
+    </Pressable>
   )
 }
 
 function MealEntryCard({
   entry,
   deleting,
+  toneColor,
   onEdit,
   onDelete
 }: {
   entry: MealEntry
   deleting: boolean
+  toneColor: string
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -478,7 +601,9 @@ function MealEntryCard({
       </View>
 
       <View style={styles.entryRight}>
-        <Text style={styles.entryCalories}>{formatNumber(entry.nutrition.calories)}</Text>
+        <Text style={[styles.entryCalories, { color: toneColor }]}>
+          {formatNumber(entry.nutrition.calories)}
+        </Text>
         <Text style={styles.entryCaloriesLabel}>kcal</Text>
       </View>
     </View>
@@ -489,17 +614,23 @@ function MacroCard({
   label,
   consumed,
   target,
-  unit
+  unit,
+  tone
 }: {
   label: string
   consumed: number
   target: number
   unit: string
+  tone: { color: string; soft: string }
 }) {
   const percent = progressPercent(consumed, target)
 
   return (
     <View style={styles.macroCard}>
+      <View style={[styles.macroDotWrap, { backgroundColor: tone.soft }]}>
+        <View style={[styles.macroDot, { backgroundColor: tone.color }]} />
+      </View>
+
       <Text style={styles.macroLabel}>{label}</Text>
 
       <Text style={styles.macroValue}>
@@ -508,100 +639,127 @@ function MacroCard({
       </Text>
 
       <View style={styles.smallProgressTrack}>
-        <View style={[styles.smallProgressFill, { width: `${percent}%` }]} />
+        <View
+          style={[styles.smallProgressFill, { width: `${percent}%`, backgroundColor: tone.color }]}
+        />
       </View>
+    </View>
+  )
+}
+
+function MealMacro({ label, value, color }: { label: string; value: number; color: string }) {
+  return (
+    <View style={styles.mealMacroPill}>
+      <View style={[styles.mealMacroDot, { backgroundColor: color }]} />
+      <Text style={styles.mealMacroText}>
+        {label} {formatDecimal(value, 'g')}
+      </Text>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   header: {
-    gap: 12,
-    marginBottom: 18,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start'
   },
+  headerCopy: {
+    flex: 1,
+    paddingRight: spacing.md
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase',
+    marginBottom: spacing.xs
+  },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 15,
-    marginTop: 4
+    lineHeight: 22,
+    marginTop: spacing.xs
   },
   refreshButton: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    ...shadows.sm
   },
   refreshText: {
     color: colors.primary,
     fontSize: 13,
-    fontWeight: '800'
+    fontWeight: '900'
   },
   dateCard: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 18,
+    borderRadius: radius['2xl'],
+    padding: spacing.md,
+    marginBottom: spacing.lg,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    ...shadows.sm
   },
   dateButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 999,
-    backgroundColor: '#F1F5F9',
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center'
   },
   dateButtonText: {
-    fontSize: 28,
-    lineHeight: 30,
-    color: colors.text,
-    fontWeight: '800'
+    fontSize: 30,
+    lineHeight: 32,
+    color: colors.primary,
+    fontWeight: '900'
   },
   dateCenter: {
     alignItems: 'center',
-    gap: 4
+    gap: 3
+  },
+  dateReadable: {
+    color: colors.heading,
+    fontSize: 17,
+    fontWeight: '900'
   },
   dateLabel: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '900'
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '800'
   },
   todayText: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700'
+    fontSize: 12,
+    fontWeight: '800',
+    marginTop: 2
   },
   todayLink: {
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: '800'
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 2
   },
   warningCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.warning,
-    padding: 16,
-    marginBottom: 18,
-    gap: 12
+    gap: spacing.md,
+    marginBottom: spacing.lg
   },
   warningTitle: {
+    color: colors.heading,
     fontSize: 18,
-    fontWeight: '900',
-    color: colors.text
+    fontWeight: '900'
   },
   warningText: {
     color: colors.muted,
@@ -610,149 +768,322 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: colors.primary,
-    borderRadius: 24,
-    padding: 22,
-    marginBottom: 16
+    borderRadius: radius['3xl'],
+    padding: spacing['2xl'],
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    ...shadows.lg
+  },
+  summaryGlowOne: {
+    position: 'absolute',
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    top: -65,
+    right: -55
+  },
+  summaryGlowTwo: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: -50,
+    left: -35
+  },
+  summaryTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.lg
   },
   summaryLabel: {
-    color: '#DCFCE7',
+    color: colors.primarySoft,
     fontSize: 15,
-    fontWeight: '800'
+    fontWeight: '900'
   },
   summaryValue: {
-    color: '#FFFFFF',
-    fontSize: 42,
+    color: colors.white,
+    fontSize: 54,
+    lineHeight: 60,
     fontWeight: '900',
-    marginTop: 6
-  },
-  summaryTarget: {
-    color: '#DCFCE7',
-    fontSize: 18,
-    fontWeight: '700'
+    letterSpacing: -1.5,
+    marginTop: spacing.xs
   },
   summarySubtext: {
-    color: '#DCFCE7',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 4
+    color: colors.primarySoft,
+    fontSize: 16,
+    fontWeight: '800'
+  },
+  summaryBadge: {
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    borderWidth: 8,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  summaryBadgeValue: {
+    color: colors.white,
+    fontSize: 20,
+    fontWeight: '900'
+  },
+  summaryBadgeLabel: {
+    color: colors.primarySoft,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase'
   },
   progressTrack: {
-    height: 10,
-    backgroundColor: '#DCFCE7',
-    borderRadius: 999,
+    height: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    marginTop: 18
+    marginTop: spacing.xl
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999
+    backgroundColor: colors.white,
+    borderRadius: radius.pill
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg
+  },
+  summaryStat: {
+    flex: 1,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    padding: spacing.md,
+    gap: 2
+  },
+  summaryStatLabel: {
+    color: colors.primarySoft,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase'
+  },
+  summaryStatValue: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '900'
   },
   macroGrid: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18
+    gap: spacing.sm,
+    marginBottom: spacing.lg
   },
   macroCard: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14
+    padding: spacing.md,
+    ...shadows.sm
+  },
+  macroDotWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm
+  },
+  macroDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6
   },
   macroLabel: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800'
+    fontSize: 12,
+    fontWeight: '900'
   },
   macroValue: {
-    color: colors.text,
-    fontSize: 22,
+    color: colors.heading,
+    fontSize: 21,
     fontWeight: '900',
-    marginTop: 8
+    marginTop: spacing.xs
   },
   macroUnit: {
     color: colors.muted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700'
   },
   smallProgressTrack: {
     height: 7,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 999,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
     overflow: 'hidden',
-    marginTop: 10
+    marginTop: spacing.md
   },
   smallProgressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 999
+    borderRadius: radius.pill
   },
-  actions: {
-    gap: 12,
-    marginBottom: 22
+  actionGrid: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing['2xl']
   },
-  section: {
-    gap: 12
+  quickAction: {
+    flex: 1,
+    minHeight: 82,
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    ...shadows.sm
   },
-  sectionTitle: {
-    color: colors.text,
+  quickActionDisabled: {
+    opacity: 0.65
+  },
+  quickIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  quickIconText: {
+    color: colors.primary,
     fontSize: 20,
     fontWeight: '900'
   },
+  quickCopy: {
+    flex: 1
+  },
+  quickTitle: {
+    color: colors.heading,
+    fontSize: 15,
+    fontWeight: '900'
+  },
+  quickSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2
+  },
+  sectionHeader: {
+    marginBottom: spacing.md
+  },
+  sectionTitle: {
+    ...typography.heading,
+    color: colors.heading
+  },
+  sectionSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 2
+  },
   mealList: {
-    gap: 14
+    gap: spacing.md,
+    marginBottom: spacing['2xl']
   },
   mealCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    gap: 14
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadows.sm
   },
   mealHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 14,
-    alignItems: 'flex-start'
+    gap: spacing.md,
+    alignItems: 'center'
+  },
+  mealHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md
+  },
+  mealIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  mealEmoji: {
+    fontSize: 24
+  },
+  mealTitleWrap: {
+    flex: 1
   },
   mealTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 18,
     fontWeight: '900'
   },
   mealSubtitle: {
     color: colors.muted,
     fontSize: 13,
-    marginTop: 4
+    fontWeight: '700',
+    marginTop: 3
   },
-  mealHeaderRight: {
-    alignItems: 'flex-end',
-    gap: 4
+  mealCaloriesWrap: {
+    alignItems: 'flex-end'
   },
   mealCalories: {
-    color: colors.primary,
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: '900'
   },
-  addMealLink: {
-    color: colors.primary,
+  mealCaloriesLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase'
+  },
+  mealActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm
+  },
+  mealPillButton: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm
+  },
+  mealPillText: {
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  copyPillButton: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm
+  },
+  copyPillText: {
+    color: colors.mutedDark,
     fontSize: 13,
     fontWeight: '900'
   },
   entryList: {
-    gap: 10
+    gap: spacing.sm
   },
   entryCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
+    padding: spacing.md,
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     justifyContent: 'space-between'
   },
   entryMain: {
@@ -760,14 +1091,15 @@ const styles = StyleSheet.create({
     gap: 4
   },
   entryTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 15,
     fontWeight: '900'
   },
   entryMeta: {
     color: colors.muted,
     fontSize: 13,
-    lineHeight: 18
+    lineHeight: 18,
+    fontWeight: '700'
   },
   entryNotes: {
     color: colors.muted,
@@ -778,40 +1110,40 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end'
   },
   entryCalories: {
-    color: colors.text,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900'
   },
   entryCaloriesLabel: {
     color: colors.muted,
     fontSize: 11,
-    fontWeight: '700'
+    fontWeight: '900',
+    textTransform: 'uppercase'
   },
-  emptyText: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20
-  },
-  mealMacroRow: {
+  entryActions: {
     flexDirection: 'row',
-    gap: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs
   },
-  mealMacroText: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800'
+  editButton: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.proteinSoft,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6
+  },
+  editButtonText: {
+    color: colors.protein,
+    fontSize: 12,
+    fontWeight: '900'
   },
   deleteButton: {
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    borderRadius: 999,
-    backgroundColor: '#FEF2F2',
+    borderRadius: radius.pill,
+    backgroundColor: colors.dangerSoft,
     borderWidth: 1,
-    borderColor: '#FECACA',
-    paddingHorizontal: 10,
+    borderColor: '#FECDD3',
+    paddingHorizontal: spacing.md,
     paddingVertical: 6
   },
   deleteButtonText: {
@@ -819,35 +1151,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900'
   },
-  entryActions: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6
-  },
-  editButton: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    backgroundColor: '#EFF6FF',
+  emptyMealBox: {
+    borderRadius: radius.xl,
     borderWidth: 1,
-    marginTop: 6,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 10,
-    paddingVertical: 6
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSoft,
+    padding: spacing.lg,
+    gap: spacing.xs
   },
-  editButtonText: {
-    color: '#1D4ED8',
-    fontSize: 12,
+  emptyMealTitle: {
+    color: colors.heading,
+    fontSize: 15,
     fontWeight: '900'
   },
-  mealActionLinks: {
+  emptyMealText: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '700'
+  },
+  mealMacroRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md
+  },
+  mealMacroPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    gap: 10
+    gap: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7
   },
-  copyMealLink: {
-    color: colors.muted,
+  mealMacroDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4
+  },
+  mealMacroText: {
+    color: colors.mutedDark,
     fontSize: 12,
     fontWeight: '900'
   }

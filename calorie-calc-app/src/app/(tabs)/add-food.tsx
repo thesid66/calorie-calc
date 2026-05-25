@@ -3,19 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
+import { addFoodFavorite, getFoodFavorites, removeFoodFavorite } from '@/api/foodFavorites'
 import { searchFoods } from '@/api/foods'
 import { getRecentMealEntries, storeMealEntry } from '@/api/mealEntries'
-import { addFoodFavorite, getFoodFavorites, removeFoodFavorite } from '@/api/foodFavorites'
-import {
-  AppButton,
-  AppInput,
-  Chip,
-  ErrorCard,
-  Screen,
-  SectionHeader,
-  AppDatePicker
-} from '@/components/ui'
+import { AppButton, AppDatePicker, AppInput, Chip, ErrorCard, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealEntry, MealType } from '@/types/diary'
 import type { Food, FoodServing } from '@/types/foods'
 
@@ -109,6 +102,14 @@ function estimateCalories(
   return (caloriesPer100g / 100) * totalGrams
 }
 
+function readableDate(dateString: string) {
+  return new Intl.DateTimeFormat('en', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short'
+  }).format(new Date(`${dateString}T00:00:00`))
+}
+
 export default function AddFoodScreen() {
   const params = useLocalSearchParams<{
     date?: string | string[]
@@ -147,6 +148,8 @@ export default function AddFoodScreen() {
   const [favoriteFoodIds, setFavoriteFoodIds] = useState<number[]>([])
   const [loadingFavoriteFoods, setLoadingFavoriteFoods] = useState(false)
   const [updatingFavoriteFoodId, setUpdatingFavoriteFoodId] = useState<number | null>(null)
+
+  const selectedMealTone = mealTones[mealType]
 
   const selectedServing = useMemo(() => {
     if (!selectedFood || !selectedServingId) {
@@ -457,8 +460,8 @@ export default function AddFoodScreen() {
       submittingRef.current = true
       setSaving(true)
 
-      const payload = {
-        entry_mode: 'food' as const,
+      await storeMealEntry({
+        entry_mode: 'food',
         logged_for_date: loggedForDate.trim(),
         meal_type: mealType,
         food_id: selectedFood.id,
@@ -466,11 +469,7 @@ export default function AddFoodScreen() {
         quantity: selectedServing ? toNumber(quantity) : null,
         total_grams: selectedServing ? null : toNumber(totalGrams),
         notes: notes.trim() || null
-      }
-
-      console.log('MEAL ENTRY PAYLOAD:', payload)
-
-      await storeMealEntry(payload)
+      })
 
       Alert.alert('Food logged', `${selectedFood.name} was added to your diary.`)
 
@@ -499,13 +498,36 @@ export default function AddFoodScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Add Food</Text>
+        <Text style={styles.eyebrow}>Food logger</Text>
+        <Text style={styles.title}>Add food</Text>
         <Text style={styles.subtitle}>
-          Search Nepali, South Asian, custom and packaged foods, then log them to today’s diary.
+          Search, scan, create or quickly re-log foods to your diary.
         </Text>
       </View>
 
-      <View style={styles.searchCard}>
+      <View style={styles.contextCard}>
+        <View style={[styles.contextIcon, { backgroundColor: selectedMealTone.soft }]}>
+          <Text style={styles.contextEmoji}>{selectedMealTone.emoji}</Text>
+        </View>
+
+        <View style={styles.contextCopy}>
+          <Text style={styles.contextLabel}>Logging to</Text>
+          <Text style={styles.contextTitle}>
+            {selectedMealTone.label} • {readableDate(loggedForDate)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.searchHero}>
+        <View style={styles.searchHeroTop}>
+          <View>
+            <Text style={styles.searchTitle}>Find your food</Text>
+            <Text style={styles.searchSubtitle}>Try dal bhat, rice, roti, chicken or milk.</Text>
+          </View>
+
+          {loadingFoods ? <ActivityIndicator color={colors.primary} /> : null}
+        </View>
+
         <AppInput
           label="Search food"
           value={search}
@@ -513,97 +535,13 @@ export default function AddFoodScreen() {
           placeholder="Example: dal bhat, rice, chicken, roti"
           autoCapitalize="none"
         />
-
-        {loadingFoods ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={styles.loadingText}>Searching foods...</Text>
-          </View>
-        ) : null}
       </View>
 
-      {favoriteFoods.length > 0 || loadingFavoriteFoods ? (
-        <View style={styles.quickEntryCard}>
-          <SectionHeader title="Favourite foods" subtitle="Pinned foods you use often." />
-
-          {loadingFavoriteFoods ? (
-            <Text style={styles.loadingText}>Loading favourite foods...</Text>
-          ) : (
-            <View style={styles.recentList}>
-              {favoriteFoods.map((food) => (
-                <View key={food.id} style={styles.recentCard}>
-                  <Pressable style={styles.recentMain} onPress={() => selectFood(food)}>
-                    <Text style={styles.recentName}>{food.name}</Text>
-
-                    {food.nepali_name ? (
-                      <Text style={styles.recentMeta}>{food.nepali_name}</Text>
-                    ) : null}
-
-                    <Text style={styles.recentCalories}>
-                      {formatNumber(food.nutrition_per_100g.calories)} kcal / 100g
-                    </Text>
-                  </Pressable>
-
-                  <Pressable style={styles.quickLogButton} onPress={() => selectFood(food)}>
-                    <Text style={styles.quickLogButtonText}>Use</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : null}
-
-      {recentEntries.length > 0 || loadingRecentEntries ? (
-        <View style={styles.quickEntryCard}>
-          <SectionHeader title="Recent foods" subtitle="Quickly log foods you added recently." />
-
-          {loadingRecentEntries ? (
-            <Text style={styles.loadingText}>Loading recent foods...</Text>
-          ) : (
-            <View style={styles.recentList}>
-              {recentEntries.map((entry) => (
-                <View key={entry.id} style={styles.recentCard}>
-                  <View style={styles.recentMain}>
-                    <Text style={styles.recentName}>{entry.food_name}</Text>
-
-                    <Text style={styles.recentMeta}>
-                      {entry.serving_label ? `${entry.quantity} × ${entry.serving_label}` : ''}
-                      {entry.total_grams ? ` • ${formatDecimal(entry.total_grams, 'g')}` : ''}
-                    </Text>
-
-                    <Text style={styles.recentCalories}>
-                      {formatNumber(entry.nutrition.calories)} kcal
-                    </Text>
-                  </View>
-
-                  <Pressable
-                    style={styles.quickLogButton}
-                    disabled={quickLoggingEntryId === entry.id}
-                    onPress={() => handleQuickRelog(entry)}
-                  >
-                    <Text style={styles.quickLogButtonText}>
-                      {quickLoggingEntryId === entry.id ? 'Logging...' : 'Log'}
-                    </Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      ) : null}
-
-      <View style={styles.quickEntryCard}>
-        <View style={styles.quickEntryText}>
-          <Text style={styles.quickEntryTitle}>Know the calories already?</Text>
-          <Text style={styles.quickEntrySubtitle}>
-            Add a quick manual entry without searching the food database.
-          </Text>
-        </View>
-
-        <AppButton
-          title="Manual quick entry"
-          variant="secondary"
+      <View style={styles.quickGrid}>
+        <CommandCard
+          icon="✎"
+          title="Manual"
+          subtitle="Quick calories"
           onPress={() =>
             router.push({
               pathname: '/meal/manual',
@@ -614,75 +552,61 @@ export default function AddFoodScreen() {
             })
           }
         />
-      </View>
 
-      <View style={styles.quickEntryCard}>
-        <View style={styles.quickEntryText}>
-          <Text style={styles.quickEntryTitle}>Have a packaged food barcode?</Text>
-          <Text style={styles.quickEntrySubtitle}>
-            Look up the product from Open Food Facts and save it to your food database.
-          </Text>
-        </View>
-
-        <AppButton
-          title="Barcode lookup"
-          variant="secondary"
+        <CommandCard
+          icon="▦"
+          title="Barcode"
+          subtitle="Packaged food"
           onPress={() => router.push('/meal/barcode')}
         />
-      </View>
 
-      <View style={styles.quickEntryCard}>
-        <View style={styles.quickEntryText}>
-          <Text style={styles.quickEntryTitle}>Food not found?</Text>
-          <Text style={styles.quickEntrySubtitle}>
-            Create your own food with calories, macros and serving size.
-          </Text>
-        </View>
-
-        <AppButton
-          title="Create custom food"
-          variant="secondary"
+        <CommandCard
+          icon="+"
+          title="Custom"
+          subtitle="Create food"
           onPress={() => router.push('/meal/custom-food')}
         />
       </View>
 
       {selectedFood ? (
         <View style={styles.selectedCard}>
-          <View style={styles.selectedTop}>
-            <View style={styles.selectedMain}>
-              <Text style={styles.selectedLabel}>Selected food</Text>
-              <Text style={styles.selectedName}>{selectedFood.name}</Text>
+          <View style={styles.selectedHeader}>
+            <View style={styles.selectedHeaderLeft}>
+              <View style={styles.selectedIcon}>
+                <Text style={styles.selectedIconText}>🍽️</Text>
+              </View>
 
-              {selectedFood.nepali_name ? (
-                <Text style={styles.selectedMeta}>{selectedFood.nepali_name}</Text>
-              ) : null}
+              <View style={styles.selectedMain}>
+                <Text style={styles.selectedLabel}>Selected food</Text>
+                <Text style={styles.selectedName}>{selectedFood.name}</Text>
 
-              <Text style={styles.selectedMeta}>
-                {formatNumber(selectedFood.nutrition_per_100g.calories)} kcal / 100g
-              </Text>
+                {selectedFood.nepali_name ? (
+                  <Text style={styles.selectedMeta}>{selectedFood.nepali_name}</Text>
+                ) : null}
+
+                <Text style={styles.selectedMeta}>
+                  {formatNumber(selectedFood.nutrition_per_100g.calories)} kcal / 100g
+                </Text>
+              </View>
             </View>
 
-            <Pressable onPress={clearSelectedFood}>
-              <Text style={styles.clearLink}>Change</Text>
+            <Pressable style={styles.changeButton} onPress={clearSelectedFood}>
+              <Text style={styles.changeButtonText}>Change</Text>
             </Pressable>
           </View>
 
-          <View style={styles.section}>
-            <SectionHeader title="Meal" />
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Meal</Text>
 
             <View style={styles.chipRow}>
-              {mealOptions.map((option) => {
-                const selected = option.type === mealType
-
-                return (
-                  <Chip
-                    key={option.type}
-                    label={option.label}
-                    selected={selected}
-                    onPress={() => setMealType(option.type)}
-                  />
-                )
-              })}
+              {mealOptions.map((option) => (
+                <Chip
+                  key={option.type}
+                  label={option.label}
+                  selected={option.type === mealType}
+                  onPress={() => setMealType(option.type)}
+                />
+              ))}
             </View>
           </View>
 
@@ -690,8 +614,8 @@ export default function AddFoodScreen() {
             <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
 
             {selectedFood.servings.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader title="Serving size" />
+              <View style={styles.formSection}>
+                <Text style={styles.sectionTitle}>Serving size</Text>
 
                 <View style={styles.servingList}>
                   {selectedFood.servings.map((serving) => {
@@ -706,14 +630,24 @@ export default function AddFoodScreen() {
                           setTotalGrams('')
                         }}
                       >
-                        <Text
-                          style={[
-                            styles.servingLabel,
-                            selected ? styles.servingLabelSelected : null
-                          ]}
-                        >
-                          {serving.label}
-                        </Text>
+                        <View>
+                          <Text
+                            style={[
+                              styles.servingLabel,
+                              selected ? styles.servingLabelSelected : null
+                            ]}
+                          >
+                            {serving.label}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.servingHint,
+                              selected ? styles.servingHintSelected : null
+                            ]}
+                          >
+                            Standard serving
+                          </Text>
+                        </View>
 
                         <Text
                           style={[
@@ -737,14 +671,24 @@ export default function AddFoodScreen() {
                       setTotalGrams('100')
                     }}
                   >
-                    <Text
-                      style={[
-                        styles.servingLabel,
-                        selectedServingId === null ? styles.servingLabelSelected : null
-                      ]}
-                    >
-                      Custom grams
-                    </Text>
+                    <View>
+                      <Text
+                        style={[
+                          styles.servingLabel,
+                          selectedServingId === null ? styles.servingLabelSelected : null
+                        ]}
+                      >
+                        Custom grams
+                      </Text>
+                      <Text
+                        style={[
+                          styles.servingHint,
+                          selectedServingId === null ? styles.servingHintSelected : null
+                        ]}
+                      >
+                        Enter exact weight
+                      </Text>
+                    </View>
 
                     <Text
                       style={[
@@ -787,7 +731,11 @@ export default function AddFoodScreen() {
           </View>
 
           <View style={styles.estimateCard}>
-            <Text style={styles.estimateLabel}>Estimated calories</Text>
+            <View>
+              <Text style={styles.estimateLabel}>Estimated calories</Text>
+              <Text style={styles.estimateHint}>Based on selected serving and quantity.</Text>
+            </View>
+
             <Text style={styles.estimateValue}>{formatNumber(estimatedCalories)} kcal</Text>
           </View>
 
@@ -796,339 +744,630 @@ export default function AddFoodScreen() {
           <AppButton title="Log food" loading={saving} onPress={handleLogFood} />
         </View>
       ) : (
-        <View style={styles.resultsSection}>
-          <SectionHeader title="Food results" />
-
-          {foods.length === 0 && !loadingFoods ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No foods found</Text>
-              <Text style={styles.emptyText}>
-                Try another search term. Custom food creation will be added next.
-              </Text>
-            </View>
-          ) : null}
-
-          <View style={styles.foodList}>
-            {foods.map((food) => (
-              <Pressable key={food.id} style={styles.foodCard} onPress={() => selectFood(food)}>
-                <View style={styles.foodMain}>
-                  <Text style={styles.foodName}>{food.name}</Text>
-
-                  {food.nepali_name ? (
-                    <Text style={styles.foodMeta}>{food.nepali_name}</Text>
-                  ) : null}
-
-                  <Text style={styles.foodMeta}>
-                    {food.cuisine ? `${food.cuisine} • ` : ''}
-                    {food.source}
-                    {food.is_verified ? ' • verified' : ''}
-                  </Text>
-                </View>
-
-                <View style={styles.foodRight}>
-                  <Pressable
-                    style={styles.favoriteButton}
-                    disabled={updatingFavoriteFoodId === food.id}
-                    onPress={(event) => {
+        <>
+          {favoriteFoods.length > 0 || loadingFavoriteFoods ? (
+            <FoodShelf title="Favourite foods" subtitle="Pinned foods you use often.">
+              {loadingFavoriteFoods ? (
+                <Text style={styles.loadingText}>Loading favourite foods...</Text>
+              ) : (
+                favoriteFoods.map((food) => (
+                  <FoodCard
+                    key={food.id}
+                    food={food}
+                    favorite={favoriteFoodIds.includes(food.id)}
+                    updatingFavorite={updatingFavoriteFoodId === food.id}
+                    onSelect={() => selectFood(food)}
+                    onToggleFavorite={(event) => {
                       event.stopPropagation()
                       toggleFavoriteFood(food)
                     }}
-                  >
-                    <Text style={styles.favoriteButtonText}>
-                      {favoriteFoodIds.includes(food.id) ? '★' : '☆'}
-                    </Text>
-                  </Pressable>
+                  />
+                ))
+              )}
+            </FoodShelf>
+          ) : null}
 
-                  <Text style={styles.foodCalories}>
-                    {formatNumber(food.nutrition_per_100g.calories)}
-                  </Text>
-                  <Text style={styles.foodCaloriesLabel}>kcal/100g</Text>
-                </View>
-              </Pressable>
+          {recentEntries.length > 0 || loadingRecentEntries ? (
+            <FoodShelf title="Recent foods" subtitle="Quickly log foods you added recently.">
+              {loadingRecentEntries ? (
+                <Text style={styles.loadingText}>Loading recent foods...</Text>
+              ) : (
+                recentEntries.map((entry) => (
+                  <RecentEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    logging={quickLoggingEntryId === entry.id}
+                    onPress={() => handleQuickRelog(entry)}
+                  />
+                ))
+              )}
+            </FoodShelf>
+          ) : null}
+
+          <FoodShelf title="Food results" subtitle={`${foods.length} result(s) found`}>
+            {foods.length === 0 && !loadingFoods ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyTitle}>No foods found</Text>
+                <Text style={styles.emptyText}>
+                  Try another search term or create a custom food.
+                </Text>
+              </View>
+            ) : null}
+
+            {foods.map((food) => (
+              <FoodCard
+                key={food.id}
+                food={food}
+                favorite={favoriteFoodIds.includes(food.id)}
+                updatingFavorite={updatingFavoriteFoodId === food.id}
+                onSelect={() => selectFood(food)}
+                onToggleFavorite={(event) => {
+                  event.stopPropagation()
+                  toggleFavoriteFood(food)
+                }}
+              />
             ))}
-          </View>
-        </View>
+          </FoodShelf>
+        </>
       )}
     </Screen>
   )
 }
 
+function CommandCard({
+  icon,
+  title,
+  subtitle,
+  onPress
+}: {
+  icon: string
+  title: string
+  subtitle: string
+  onPress: () => void
+}) {
+  return (
+    <Pressable style={styles.commandCard} onPress={onPress}>
+      <View style={styles.commandIcon}>
+        <Text style={styles.commandIconText}>{icon}</Text>
+      </View>
+
+      <Text style={styles.commandTitle}>{title}</Text>
+      <Text style={styles.commandSubtitle}>{subtitle}</Text>
+    </Pressable>
+  )
+}
+
+function FoodShelf({
+  title,
+  subtitle,
+  children
+}: {
+  title: string
+  subtitle: string
+  children: React.ReactNode
+}) {
+  return (
+    <View style={styles.shelf}>
+      <View style={styles.shelfHeader}>
+        <Text style={styles.shelfTitle}>{title}</Text>
+        <Text style={styles.shelfSubtitle}>{subtitle}</Text>
+      </View>
+
+      <View style={styles.foodList}>{children}</View>
+    </View>
+  )
+}
+
+function FoodCard({
+  food,
+  favorite,
+  updatingFavorite,
+  onSelect,
+  onToggleFavorite
+}: {
+  food: Food
+  favorite: boolean
+  updatingFavorite: boolean
+  onSelect: () => void
+  onToggleFavorite: (event: { stopPropagation: () => void }) => void
+}) {
+  return (
+    <Pressable style={styles.foodCard} onPress={onSelect}>
+      <View style={styles.foodMain}>
+        <Text style={styles.foodName}>{food.name}</Text>
+
+        {food.nepali_name ? <Text style={styles.foodNepaliName}>{food.nepali_name}</Text> : null}
+
+        <View style={styles.foodMetaRow}>
+          {food.cuisine ? <Text style={styles.foodTag}>{food.cuisine}</Text> : null}
+          <Text style={styles.foodTag}>{food.source}</Text>
+          {food.is_verified ? <Text style={styles.verifiedTag}>Verified</Text> : null}
+        </View>
+      </View>
+
+      <View style={styles.foodRight}>
+        <Pressable
+          style={styles.favoriteButton}
+          disabled={updatingFavorite}
+          onPress={onToggleFavorite}
+        >
+          <Text style={styles.favoriteButtonText}>{favorite ? '★' : '☆'}</Text>
+        </Pressable>
+
+        <Text style={styles.foodCalories}>{formatNumber(food.nutrition_per_100g.calories)}</Text>
+        <Text style={styles.foodCaloriesLabel}>kcal/100g</Text>
+      </View>
+    </Pressable>
+  )
+}
+
+function RecentEntryCard({
+  entry,
+  logging,
+  onPress
+}: {
+  entry: MealEntry
+  logging: boolean
+  onPress: () => void
+}) {
+  return (
+    <View style={styles.recentCard}>
+      <View style={styles.recentMain}>
+        <Text style={styles.recentName}>{entry.food_name}</Text>
+
+        <Text style={styles.recentMeta}>
+          {entry.serving_label ? `${entry.quantity} × ${entry.serving_label}` : 'Recent entry'}
+          {entry.total_grams ? ` • ${formatDecimal(entry.total_grams, 'g')}` : ''}
+        </Text>
+
+        <Text style={styles.recentCalories}>{formatNumber(entry.nutrition.calories)} kcal</Text>
+      </View>
+
+      <Pressable style={styles.logAgainButton} disabled={logging} onPress={onPress}>
+        <Text style={styles.logAgainText}>{logging ? 'Logging...' : 'Log'}</Text>
+      </Pressable>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   header: {
-    gap: 6,
-    marginBottom: 20
+    gap: spacing.xs,
+    marginBottom: spacing.lg
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase'
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 16,
     lineHeight: 24
   },
-  searchCard: {
+  contextCard: {
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    gap: 12,
-    marginBottom: 18
-  },
-  loadingRow: {
+    padding: spacing.md,
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.sm
   },
-  loadingText: {
+  contextIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  contextEmoji: {
+    fontSize: 24
+  },
+  contextCopy: {
+    flex: 1
+  },
+  contextLabel: {
     color: colors.muted,
-    fontSize: 14
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase'
   },
-  resultsSection: {
-    gap: 12
+  contextTitle: {
+    color: colors.heading,
+    fontSize: 16,
+    fontWeight: '900',
+    marginTop: 2
   },
-  section: {
-    gap: 12
+  searchHero: {
+    backgroundColor: colors.cardWarm,
+    borderRadius: radius['3xl'],
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.md,
+    ...shadows.md
+  },
+  searchHeroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    alignItems: 'flex-start'
+  },
+  searchTitle: {
+    color: colors.heading,
+    fontSize: 21,
+    fontWeight: '900'
+  },
+  searchSubtitle: {
+    color: colors.muted,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
+    marginTop: 3
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing['2xl']
+  },
+  commandCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: spacing.xs,
+    ...shadows.sm
+  },
+  commandIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  commandIconText: {
+    color: colors.primary,
+    fontSize: 19,
+    fontWeight: '900'
+  },
+  commandTitle: {
+    color: colors.heading,
+    fontSize: 15,
+    fontWeight: '900'
+  },
+  commandSubtitle: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17
+  },
+  shelf: {
+    marginBottom: spacing['2xl'],
+    gap: spacing.md
+  },
+  shelfHeader: {
+    gap: 2
+  },
+  shelfTitle: {
+    ...typography.heading,
+    color: colors.heading
+  },
+  shelfSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700'
   },
   foodList: {
-    gap: 10
+    gap: spacing.md
   },
   foodCard: {
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
+    padding: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12
+    gap: spacing.md,
+    ...shadows.sm
   },
   foodMain: {
     flex: 1,
-    gap: 4
+    gap: spacing.xs
   },
   foodName: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 16,
     fontWeight: '900'
   },
-  foodMeta: {
-    color: colors.muted,
+  foodNepaliName: {
+    color: colors.mutedDark,
     fontSize: 13,
-    lineHeight: 18,
+    fontWeight: '800'
+  },
+  foodMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs
+  },
+  foodTag: {
+    color: colors.muted,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '900',
     textTransform: 'capitalize'
   },
+  verifiedTag: {
+    color: colors.success,
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.pill,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '900'
+  },
   foodRight: {
-    alignItems: 'flex-end'
+    alignItems: 'flex-end',
+    gap: 4
+  },
+  favoriteButton: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  favoriteButtonText: {
+    color: colors.primary,
+    fontSize: 20,
+    fontWeight: '900'
   },
   foodCalories: {
     color: colors.primary,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900'
   },
   foodCaloriesLabel: {
     color: colors.muted,
     fontSize: 11,
+    fontWeight: '900',
+    textTransform: 'uppercase'
+  },
+  recentCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    alignItems: 'center',
+    ...shadows.sm
+  },
+  recentMain: {
+    flex: 1,
+    gap: 4
+  },
+  recentName: {
+    color: colors.heading,
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  recentMeta: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  recentCalories: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '900'
+  },
+  logAgainButton: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm
+  },
+  logAgainText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  loadingText: {
+    color: colors.muted,
+    fontSize: 14,
     fontWeight: '700'
   },
   emptyCard: {
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    gap: 6
+    padding: spacing.lg,
+    gap: spacing.xs
   },
   emptyTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 17,
     fontWeight: '900'
   },
   emptyText: {
     color: colors.muted,
     fontSize: 14,
-    lineHeight: 21
+    lineHeight: 21,
+    fontWeight: '700'
   },
   selectedCard: {
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: radius['3xl'],
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 16,
-    gap: 18
+    padding: spacing.lg,
+    gap: spacing.lg,
+    marginBottom: spacing['2xl'],
+    ...shadows.md
   },
-  selectedTop: {
+  selectedHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12
+    gap: spacing.md,
+    alignItems: 'flex-start'
+  },
+  selectedHeaderLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.md
+  },
+  selectedIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.xl,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  selectedIconText: {
+    fontSize: 23
   },
   selectedMain: {
     flex: 1,
-    gap: 4
+    gap: 3
   },
   selectedLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '800',
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
     textTransform: 'uppercase'
   },
   selectedName: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 20,
     fontWeight: '900'
   },
   selectedMeta: {
     color: colors.muted,
     fontSize: 13,
-    lineHeight: 18
+    lineHeight: 18,
+    fontWeight: '700'
   },
-  clearLink: {
+  changeButton: {
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceAlt,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  changeButtonText: {
     color: colors.primary,
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '900'
+  },
+  formSection: {
+    gap: spacing.md
+  },
+  sectionTitle: {
+    color: colors.heading,
+    fontSize: 17,
     fontWeight: '900'
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
   form: {
-    gap: 14
+    gap: spacing.md
   },
   servingList: {
-    gap: 10
+    gap: spacing.sm
   },
   servingCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 16,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 14,
+    padding: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12
+    gap: spacing.md,
+    alignItems: 'center'
   },
   servingSelected: {
     backgroundColor: colors.primary,
     borderColor: colors.primary
   },
   servingLabel: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 15,
     fontWeight: '900'
   },
   servingLabelSelected: {
-    color: '#FFFFFF'
+    color: colors.white
+  },
+  servingHint: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2
+  },
+  servingHintSelected: {
+    color: colors.primarySoft
   },
   servingGrams: {
-    color: colors.muted,
+    color: colors.mutedDark,
     fontSize: 13,
-    fontWeight: '800'
-  },
-  servingGramsSelected: {
-    color: '#DCFCE7'
-  },
-  estimateCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16
-  },
-  estimateLabel: {
-    color: colors.muted,
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  estimateValue: {
-    color: colors.primary,
-    fontSize: 32,
-    fontWeight: '900',
-    marginTop: 4
-  },
-  quickEntryCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 14,
-    marginBottom: 18
-  },
-  quickEntryText: {
-    gap: 4
-  },
-  quickEntryTitle: {
-    color: colors.text,
-    fontSize: 17,
     fontWeight: '900'
   },
-  quickEntrySubtitle: {
-    color: colors.muted,
-    fontSize: 14,
-    lineHeight: 21
+  servingGramsSelected: {
+    color: colors.white
   },
-  recentList: {
-    gap: 10
-  },
-  recentCard: {
-    backgroundColor: '#F8FAFC',
+  estimateCard: {
+    borderRadius: radius['2xl'],
+    backgroundColor: colors.caloriesSoft,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 14,
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12
+    alignItems: 'center',
+    gap: spacing.md
   },
-  recentMain: {
-    flex: 1,
-    gap: 3
-  },
-  recentName: {
-    color: colors.text,
+  estimateLabel: {
+    color: colors.heading,
     fontSize: 15,
     fontWeight: '900'
   },
-  recentMeta: {
+  estimateHint: {
     color: colors.muted,
-    fontSize: 13,
-    lineHeight: 18
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 2
   },
-  recentCalories: {
+  estimateValue: {
     color: colors.primary,
-    fontSize: 13,
+    fontSize: 22,
     fontWeight: '900'
-  },
-  quickLogButton: {
-    borderRadius: 999,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8
-  },
-  quickLogButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '900'
-  },
-  favoriteButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEF3C7',
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    marginBottom: 6
-  },
-  favoriteButtonText: {
-    color: '#D97706',
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 22
   }
 })

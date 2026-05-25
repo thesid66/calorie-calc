@@ -1,11 +1,12 @@
 import { router } from 'expo-router'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { createCustomFood } from '@/api/foods'
-import { AppButton, AppCard, AppInput, Chip, ErrorCard, Screen, SectionHeader } from '@/components/ui'
+import { AppButton, AppCard, AppInput, Chip, ErrorCard, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { CreateCustomFoodPayload } from '@/types/foods'
 
 type CustomFoodType = NonNullable<CreateCustomFoodPayload['food_type']>
@@ -26,6 +27,26 @@ function toNullableNumber(value: string): number | null {
   return Number(cleanValue)
 }
 
+function isInvalidRequiredNumber(value: string, min: number, max: number) {
+  if (!value.trim()) {
+    return true
+  }
+
+  const numericValue = toNumber(value)
+
+  return Number.isNaN(numericValue) || numericValue < min || numericValue > max
+}
+
+function isInvalidOptionalNumber(value: string, min: number, max: number) {
+  if (!value.trim()) {
+    return false
+  }
+
+  const numericValue = toNumber(value)
+
+  return Number.isNaN(numericValue) || numericValue < min || numericValue > max
+}
+
 function normalizeBarcode(value: string) {
   return value.replace(/[^0-9]/g, '')
 }
@@ -35,6 +56,22 @@ function formatFoodType(type: string) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
+}
+
+function formatNumber(value: number | null | undefined, suffix = '') {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return `0${suffix}`
+  }
+
+  return `${Math.round(Number(value))}${suffix}`
+}
+
+function formatDecimal(value: number | null | undefined, suffix = '') {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return `0${suffix}`
+  }
+
+  return `${Number(value).toFixed(1)}${suffix}`
 }
 
 function blurActiveElement() {
@@ -56,7 +93,7 @@ export default function CustomFoodScreen() {
   const [nepaliName, setNepaliName] = useState('')
   const [brand, setBrand] = useState('')
   const [barcode, setBarcode] = useState('')
-  const [foodType, setFoodType] = useState<CreateCustomFoodPayload['food_type']>('custom')
+  const [foodType, setFoodType] = useState<CustomFoodType>('custom')
   const [cuisine, setCuisine] = useState('nepali')
 
   const [calories, setCalories] = useState('')
@@ -73,6 +110,25 @@ export default function CustomFoodScreen() {
 
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  const preview = useMemo(
+    () => ({
+      calories: toNullableNumber(calories),
+      protein: toNullableNumber(proteinG),
+      carbs: toNullableNumber(carbsG),
+      fat: toNullableNumber(fatG),
+      servingGrams: toNullableNumber(servingGrams)
+    }),
+    [calories, proteinG, carbsG, fatG, servingGrams]
+  )
+
+  const servingCalories = useMemo(() => {
+    if (!preview.calories || !preview.servingGrams) {
+      return 0
+    }
+
+    return (preview.calories / 100) * preview.servingGrams
+  }, [preview.calories, preview.servingGrams])
 
   function resetForm() {
     setName('')
@@ -101,19 +157,19 @@ export default function CustomFoodScreen() {
       return 'Food name must be at least 2 characters.'
     }
 
-    if (!calories || toNumber(calories) < 0 || toNumber(calories) > 1000) {
+    if (isInvalidRequiredNumber(calories, 0, 1000)) {
       return 'Calories per 100g must be between 0 and 1000.'
     }
 
-    if (!proteinG || toNumber(proteinG) < 0 || toNumber(proteinG) > 100) {
+    if (isInvalidRequiredNumber(proteinG, 0, 100)) {
       return 'Protein per 100g must be between 0 and 100.'
     }
 
-    if (!carbsG || toNumber(carbsG) < 0 || toNumber(carbsG) > 100) {
+    if (isInvalidRequiredNumber(carbsG, 0, 100)) {
       return 'Carbs per 100g must be between 0 and 100.'
     }
 
-    if (!fatG || toNumber(fatG) < 0 || toNumber(fatG) > 100) {
+    if (isInvalidRequiredNumber(fatG, 0, 100)) {
       return 'Fat per 100g must be between 0 and 100.'
     }
 
@@ -124,12 +180,8 @@ export default function CustomFoodScreen() {
     ]
 
     for (const item of optionalNumbers) {
-      if (item.value.trim()) {
-        const numberValue = toNumber(item.value)
-
-        if (numberValue < 0 || numberValue > item.max) {
-          return `${item.label} value is out of allowed range.`
-        }
+      if (isInvalidOptionalNumber(item.value, 0, item.max)) {
+        return `${item.label} value is out of allowed range.`
       }
     }
 
@@ -141,7 +193,7 @@ export default function CustomFoodScreen() {
       return 'Serving label is required.'
     }
 
-    if (!servingGrams || toNumber(servingGrams) < 1 || toNumber(servingGrams) > 2000) {
+    if (isInvalidRequiredNumber(servingGrams, 1, 2000)) {
       return 'Serving grams must be between 1 and 2000.'
     }
 
@@ -196,8 +248,6 @@ export default function CustomFoodScreen() {
         ]
       }
 
-      console.log('CUSTOM FOOD PAYLOAD:', payload)
-
       await createCustomFood(payload)
 
       blurActiveElement()
@@ -229,15 +279,34 @@ export default function CustomFoodScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Create Custom Food</Text>
+        <Text style={styles.eyebrow}>Food database</Text>
+        <Text style={styles.title}>Create custom food</Text>
         <Text style={styles.subtitle}>
-          Add your own food with calories and macros per 100g. You can then search and log it like
-          any other food.
+          Add your own reusable food with nutrition per 100g and a default serving size.
         </Text>
       </View>
 
-      <AppCard gap={16} style={styles.card}>
-        <SectionHeader title="Basic details" />
+      <View style={styles.heroCard}>
+        <View style={styles.heroBubbleOne} />
+        <View style={styles.heroBubbleTwo} />
+
+        <View style={styles.heroIcon}>
+          <Text style={styles.heroIconText}>＋</Text>
+        </View>
+
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroTitle}>Build your own food</Text>
+          <Text style={styles.heroText}>
+            Once saved, this food will appear in search and can be logged like any database food.
+          </Text>
+        </View>
+      </View>
+
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Basic details</Text>
+          <Text style={styles.cardSubtitle}>Name, cuisine, brand and optional barcode.</Text>
+        </View>
 
         <View style={styles.form}>
           <AppInput
@@ -254,7 +323,26 @@ export default function CustomFoodScreen() {
             placeholder="Optional"
           />
 
-          <AppInput label="Brand" value={brand} onChangeText={setBrand} placeholder="Optional" />
+          <View style={styles.twoColumn}>
+            <View style={styles.column}>
+              <AppInput
+                label="Brand"
+                value={brand}
+                onChangeText={setBrand}
+                placeholder="Optional"
+              />
+            </View>
+
+            <View style={styles.column}>
+              <AppInput
+                label="Cuisine"
+                value={cuisine}
+                onChangeText={setCuisine}
+                placeholder="nepali"
+                autoCapitalize="none"
+              />
+            </View>
+          </View>
 
           <AppInput
             label="Barcode"
@@ -263,38 +351,34 @@ export default function CustomFoodScreen() {
             placeholder="Optional"
             keyboardType="numeric"
           />
-
-          <AppInput
-            label="Cuisine"
-            value={cuisine}
-            onChangeText={setCuisine}
-            placeholder="Example: nepali, indian, generic"
-            autoCapitalize="none"
-          />
         </View>
       </AppCard>
 
-      <AppCard gap={16} style={styles.card}>
-        <SectionHeader title="Food type" />
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Food type</Text>
+          <Text style={styles.cardSubtitle}>Choose the closest category for this food.</Text>
+        </View>
 
         <View style={styles.chipRow}>
-          {foodTypeOptions.map((type) => {
-            const selected = foodType === type
-
-            return (
-              <Chip
-                key={type}
-                label={formatFoodType(type)}
-                selected={selected}
-                onPress={() => setFoodType(type)}
-              />
-            )
-          })}
+          {foodTypeOptions.map((type) => (
+            <Chip
+              key={type}
+              label={formatFoodType(type)}
+              selected={foodType === type}
+              onPress={() => setFoodType(type)}
+            />
+          ))}
         </View>
       </AppCard>
 
-      <AppCard gap={16} style={styles.card}>
-        <SectionHeader title="Nutrition per 100g" />
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Nutrition per 100g</Text>
+          <Text style={styles.cardSubtitle}>
+            These values are used to calculate calories for any serving size.
+          </Text>
+        </View>
 
         <View style={styles.form}>
           <AppInput
@@ -373,8 +457,13 @@ export default function CustomFoodScreen() {
         </View>
       </AppCard>
 
-      <AppCard gap={16} style={styles.card}>
-        <SectionHeader title="Default serving" />
+      <AppCard gap={18} style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.cardTitle}>Default serving</Text>
+          <Text style={styles.cardSubtitle}>
+            This serving will be selected by default when logging this food.
+          </Text>
+        </View>
 
         <View style={styles.form}>
           <AppInput
@@ -394,21 +483,73 @@ export default function CustomFoodScreen() {
         </View>
       </AppCard>
 
-      <AppCard gap={16} style={styles.card}>
-        <Pressable style={styles.publicToggle} onPress={() => setIsPublic((current) => !current)}>
-          <View style={[styles.checkbox, isPublic ? styles.checkboxChecked : null]}>
-            {isPublic ? <Text style={styles.checkboxText}>✓</Text> : null}
-          </View>
+      <View style={styles.previewCard}>
+        <View style={styles.previewHeader}>
+          <Text style={styles.previewTitle}>Food preview</Text>
+          <Text style={styles.previewSubtitle}>Estimated values based on your current inputs.</Text>
+        </View>
 
-          <View style={styles.publicToggleText}>
-            <Text style={styles.publicTitle}>Make public</Text>
-            <Text style={styles.publicSubtitle}>
-              Public custom foods may be searchable by other users later. Keep off for personal
-              foods.
-            </Text>
-          </View>
-        </Pressable>
-      </AppCard>
+        <View style={styles.previewGrid}>
+          <PreviewMetric
+            label="Calories / 100g"
+            value={formatNumber(preview.calories, ' kcal')}
+            color={colors.primary}
+            softColor={colors.caloriesSoft}
+          />
+
+          <PreviewMetric
+            label="Serving calories"
+            value={formatNumber(servingCalories, ' kcal')}
+            color={colors.primary}
+            softColor={colors.primarySoft}
+          />
+
+          <PreviewMetric
+            label="Protein"
+            value={formatDecimal(preview.protein, 'g')}
+            color={macroTones.protein.color}
+            softColor={macroTones.protein.soft}
+          />
+
+          <PreviewMetric
+            label="Carbs"
+            value={formatDecimal(preview.carbs, 'g')}
+            color={macroTones.carbs.color}
+            softColor={macroTones.carbs.soft}
+          />
+
+          <PreviewMetric
+            label="Fat"
+            value={formatDecimal(preview.fat, 'g')}
+            color={macroTones.fat.color}
+            softColor={macroTones.fat.soft}
+          />
+
+          <PreviewMetric
+            label="Serving size"
+            value={formatDecimal(preview.servingGrams, 'g')}
+            color={colors.success}
+            softColor={colors.successSoft}
+          />
+        </View>
+      </View>
+
+      <Pressable
+        style={[styles.publicCard, isPublic ? styles.publicCardActive : null]}
+        onPress={() => setIsPublic((current) => !current)}
+      >
+        <View style={[styles.checkbox, isPublic ? styles.checkboxChecked : null]}>
+          {isPublic ? <Text style={styles.checkboxText}>✓</Text> : null}
+        </View>
+
+        <View style={styles.publicToggleText}>
+          <Text style={styles.publicTitle}>Make public</Text>
+          <Text style={styles.publicSubtitle}>
+            Keep this off for personal foods. Turn it on only if this food should be reusable by
+            others later.
+          </Text>
+        </View>
+      </Pressable>
 
       {formError ? (
         <View style={styles.errorSpacing}>
@@ -429,30 +570,128 @@ export default function CustomFoodScreen() {
   )
 }
 
+function PreviewMetric({
+  label,
+  value,
+  color,
+  softColor
+}: {
+  label: string
+  value: string
+  color: string
+  softColor: string
+}) {
+  return (
+    <View style={styles.previewMetric}>
+      <View style={[styles.previewIcon, { backgroundColor: softColor }]}>
+        <View style={[styles.previewDot, { backgroundColor: color }]} />
+      </View>
+
+      <Text style={styles.previewMetricLabel}>{label}</Text>
+      <Text style={styles.previewMetricValue}>{value}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   header: {
-    gap: 8,
-    marginBottom: 20
+    gap: spacing.xs,
+    marginBottom: spacing.lg
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase'
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 16,
     lineHeight: 24
   },
+  heroCard: {
+    backgroundColor: colors.primary,
+    borderRadius: radius['3xl'],
+    padding: spacing['2xl'],
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    gap: spacing.lg,
+    alignItems: 'center',
+    ...shadows.lg
+  },
+  heroBubbleOne: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    top: -60,
+    right: -45
+  },
+  heroBubbleTwo: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    bottom: -45,
+    left: -30
+  },
+  heroIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: radius['2xl'],
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  heroIconText: {
+    color: colors.white,
+    fontSize: 34,
+    fontWeight: '900'
+  },
+  heroCopy: {
+    flex: 1,
+    gap: spacing.xs
+  },
+  heroTitle: {
+    color: colors.white,
+    fontSize: 22,
+    fontWeight: '900'
+  },
+  heroText: {
+    color: colors.primarySoft,
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '700'
+  },
   card: {
-    marginBottom: 16
+    marginBottom: spacing.lg
+  },
+  cardHeader: {
+    gap: 3
+  },
+  cardTitle: {
+    color: colors.heading,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  cardSubtitle: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20
   },
   form: {
-    gap: 14
+    gap: spacing.md
   },
   twoColumn: {
     flexDirection: 'row',
-    gap: 12
+    gap: spacing.md
   },
   column: {
     flex: 1
@@ -460,49 +699,123 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
-  publicToggle: {
+  previewCard: {
+    backgroundColor: colors.cardWarm,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.sm
+  },
+  previewHeader: {
+    gap: 3
+  },
+  previewTitle: {
+    color: colors.heading,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  previewSubtitle: {
+    color: colors.mutedDark,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 20
+  },
+  previewGrid: {
     flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-start'
+    flexWrap: 'wrap',
+    gap: spacing.sm
   },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+  previewMetric: {
+    width: '48%',
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#F8FAFC',
+    padding: spacing.md,
+    gap: 4
+  },
+  previewIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs
+  },
+  previewDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6
+  },
+  previewMetricLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  previewMetricValue: {
+    color: colors.heading,
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  publicCard: {
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
+    ...shadows.sm
+  },
+  publicCardActive: {
+    backgroundColor: colors.successSoft,
+    borderColor: colors.success
+  },
+  checkbox: {
+    width: 30,
+    height: 30,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
     alignItems: 'center',
     justifyContent: 'center'
   },
   checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
+    backgroundColor: colors.success,
+    borderColor: colors.success
   },
   checkboxText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '900'
   },
   publicToggleText: {
     flex: 1,
-    gap: 4
+    gap: spacing.xs
   },
   publicTitle: {
-    color: colors.text,
-    fontSize: 15,
+    color: colors.heading,
+    fontSize: 16,
     fontWeight: '900'
   },
   publicSubtitle: {
-    color: colors.muted,
+    color: colors.mutedDark,
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 20,
+    fontWeight: '700'
   },
   errorSpacing: {
-    marginBottom: 16,
+    marginBottom: spacing.lg
   },
   actions: {
-    gap: 12
+    gap: spacing.md,
+    marginBottom: spacing.xl
   }
 })

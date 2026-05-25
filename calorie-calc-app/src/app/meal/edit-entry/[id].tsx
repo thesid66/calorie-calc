@@ -7,15 +7,16 @@ import { getMealEntry, updateMealEntry, type UpdateMealEntryPayload } from '@/ap
 import {
   AppButton,
   AppCard,
+  AppDatePicker,
   AppInput,
   Chip,
   ErrorCard,
   LoadingState,
   Screen,
-  SectionHeader,
-  AppDatePicker
+  SectionHeader
 } from '@/components/ui'
 import { colors } from '@/constants/colors'
+import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealEntry, MealType } from '@/types/diary'
 
 const mealOptions: { type: MealType; label: string }[] = [
@@ -45,6 +46,34 @@ function formatNumber(value: number | null | undefined, suffix = '') {
   }
 
   return `${Math.round(Number(value))}${suffix}`
+}
+
+function formatDecimal(value: number | null | undefined, suffix = '') {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return `0${suffix}`
+  }
+
+  return `${Number(value).toFixed(1)}${suffix}`
+}
+
+function isInvalidRequiredNumber(value: string, min = 0) {
+  if (!value.trim()) {
+    return true
+  }
+
+  const numericValue = toNumber(value)
+
+  return Number.isNaN(numericValue) || numericValue < min
+}
+
+function isInvalidOptionalNumber(value: string, min = 0) {
+  if (!value.trim()) {
+    return false
+  }
+
+  const numericValue = toNumber(value)
+
+  return Number.isNaN(numericValue) || numericValue < min
 }
 
 function blurActiveElement() {
@@ -105,7 +134,7 @@ export default function EditMealEntryScreen() {
       setMealType(loadedEntry.meal_type)
       setLoggedForDate(loadedEntry.logged_for_date)
       setFoodName(loadedEntry.food_name)
-      setServingLabel(loadedEntry.serving_label ?? '1 serving')
+      setServingLabel(loadedEntry.serving_label ?? '')
       setQuantity(String(loadedEntry.quantity ?? 1))
       setTotalGrams(loadedEntry.total_grams ? String(loadedEntry.total_grams) : '')
 
@@ -113,21 +142,25 @@ export default function EditMealEntryScreen() {
       setProteinG(String(loadedEntry.nutrition.protein_g ?? ''))
       setCarbsG(String(loadedEntry.nutrition.carbs_g ?? ''))
       setFatG(String(loadedEntry.nutrition.fat_g ?? ''))
+
       setFiberG(
         loadedEntry.nutrition.fiber_g !== null && loadedEntry.nutrition.fiber_g !== undefined
           ? String(loadedEntry.nutrition.fiber_g)
           : ''
       )
+
       setSugarG(
         loadedEntry.nutrition.sugar_g !== null && loadedEntry.nutrition.sugar_g !== undefined
           ? String(loadedEntry.nutrition.sugar_g)
           : ''
       )
+
       setSodiumMg(
         loadedEntry.nutrition.sodium_mg !== null && loadedEntry.nutrition.sodium_mg !== undefined
           ? String(loadedEntry.nutrition.sodium_mg)
           : ''
       )
+
       setNotes(loadedEntry.notes ?? '')
     } catch (error) {
       if (error instanceof ApiError) {
@@ -151,6 +184,15 @@ export default function EditMealEntryScreen() {
     return entry?.food_id !== null && entry?.food_id !== undefined
   }
 
+  function hasFoodServing() {
+    return (
+      isFoodMode() &&
+      entry?.serving_grams !== null &&
+      entry?.serving_grams !== undefined &&
+      Number(entry.serving_grams) > 0
+    )
+  }
+
   function validateForm(): string | null {
     if (!entry) {
       return 'Meal entry was not loaded.'
@@ -169,12 +211,12 @@ export default function EditMealEntryScreen() {
         return 'Food ID is missing.'
       }
 
-      if (!entry.serving_label && !totalGrams.trim()) {
-        return 'Total grams is required when serving information is missing.'
-      }
-
-      if (!quantity || toNumber(quantity) <= 0) {
-        return 'Quantity must be greater than 0.'
+      if (hasFoodServing()) {
+        if (isInvalidRequiredNumber(quantity, 0.0001)) {
+          return 'Quantity must be greater than 0.'
+        }
+      } else if (isInvalidRequiredNumber(totalGrams, 0.0001)) {
+        return 'Total grams must be greater than 0.'
       }
 
       return null
@@ -184,7 +226,7 @@ export default function EditMealEntryScreen() {
       return 'Food name must be at least 2 characters.'
     }
 
-    if (!calories || toNumber(calories) < 0) {
+    if (isInvalidRequiredNumber(calories, 0)) {
       return 'Calories are required.'
     }
 
@@ -198,8 +240,8 @@ export default function EditMealEntryScreen() {
     ]
 
     for (const item of optionalNumbers) {
-      if (item.value.trim() && toNumber(item.value) < 0) {
-        return `${item.label} cannot be negative.`
+      if (isInvalidOptionalNumber(item.value, 0)) {
+        return `${item.label} cannot be negative or invalid.`
       }
     }
 
@@ -238,8 +280,8 @@ export default function EditMealEntryScreen() {
           meal_type: mealType,
           food_id: Number(entry.food_id),
           food_serving_id: null,
-          quantity: toNumber(quantity),
-          total_grams: entry.serving_label ? null : toNullableNumber(totalGrams),
+          quantity: hasFoodServing() ? toNumber(quantity) : null,
+          total_grams: hasFoodServing() ? null : toNullableNumber(totalGrams),
           notes: notes.trim() || null
         }
       } else {
@@ -259,8 +301,6 @@ export default function EditMealEntryScreen() {
           notes: notes.trim() || null
         }
       }
-
-      console.log('UPDATE MEAL ENTRY PAYLOAD:', payload)
 
       await updateMealEntry(entry.id, payload)
 
@@ -300,7 +340,8 @@ export default function EditMealEntryScreen() {
     return (
       <Screen>
         <View style={styles.header}>
-          <Text style={styles.title}>Edit Meal Entry</Text>
+          <Text style={styles.eyebrow}>Edit entry</Text>
+          <Text style={styles.title}>Entry not found</Text>
           <Text style={styles.subtitle}>This meal entry could not be loaded.</Text>
         </View>
 
@@ -315,177 +356,269 @@ export default function EditMealEntryScreen() {
     )
   }
 
+  const foodMode = isFoodMode()
+  const mealTone = mealTones[mealType]
+
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Edit Meal Entry</Text>
+        <Text style={styles.eyebrow}>{foodMode ? 'Database food' : 'Manual entry'}</Text>
+        <Text style={styles.title}>Edit meal entry</Text>
         <Text style={styles.subtitle}>
-          Update the date, meal, quantity or notes for this diary item.
+          {foodMode
+            ? 'Update the date, meal, quantity or notes for this saved food.'
+            : 'Edit the food name, serving label, calories and macro values.'}
         </Text>
+      </View>
+
+      <View style={styles.entryHero}>
+        <View style={[styles.entryHeroIcon, { backgroundColor: mealTone.soft }]}>
+          <Text style={styles.entryHeroEmoji}>{mealTone.emoji}</Text>
+        </View>
+
+        <View style={styles.entryHeroCopy}>
+          <Text style={styles.entryHeroLabel}>{mealTone.label}</Text>
+          <Text style={styles.entryHeroTitle}>{foodName || entry.food_name}</Text>
+          <Text style={styles.entryHeroMeta}>
+            Current: {formatNumber(entry.nutrition.calories, ' kcal')}
+          </Text>
+        </View>
       </View>
 
       <AppCard gap={16} style={styles.card}>
         <SectionHeader title="Meal" />
 
         <View style={styles.chipRow}>
-          {mealOptions.map((option) => {
-            const selected = option.type === mealType
-
-            return (
-              <Chip
-                key={option.type}
-                label={option.label}
-                selected={selected}
-                onPress={() => setMealType(option.type)}
-              />
-            )
-          })}
-        </View>
-      </AppCard>
-
-      <AppCard gap={16} style={styles.card}>
-        <SectionHeader title="Entry details" />
-
-        <View style={styles.form}>
-          <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
-
-          <AppInput
-            label="Food name"
-            value={foodName}
-            onChangeText={setFoodName}
-            placeholder="Food name"
-            editable={!isFoodMode()}
-          />
-
-          <AppInput
-            label="Serving label"
-            value={servingLabel}
-            onChangeText={setServingLabel}
-            placeholder="Example: 1 plate, 1 bowl"
-            editable={!isFoodMode()}
-          />
-
-          <AppInput
-            label="Quantity"
-            value={quantity}
-            onChangeText={setQuantity}
-            placeholder="Example: 1"
-            keyboardType="numeric"
-          />
-
-          {isFoodMode() && !entry.serving_label ? (
-            <AppInput
-              label="Total grams"
-              value={totalGrams}
-              onChangeText={setTotalGrams}
-              placeholder="Example: 150"
-              keyboardType="numeric"
+          {mealOptions.map((option) => (
+            <Chip
+              key={option.type}
+              label={option.label}
+              selected={option.type === mealType}
+              onPress={() => setMealType(option.type)}
             />
-          ) : null}
-
-          <AppInput
-            label="Notes"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Optional"
-            multiline
-          />
+          ))}
         </View>
       </AppCard>
 
-      {!isFoodMode() ? (
+      {foodMode ? (
         <AppCard gap={16} style={styles.card}>
-          <SectionHeader title="Manual nutrition" />
+          <SectionHeader
+            title="Food entry details"
+            subtitle="Nutrition comes from the saved food database record."
+          />
 
           <View style={styles.form}>
+            <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
+
             <AppInput
-              label="Calories"
-              value={calories}
-              onChangeText={setCalories}
-              placeholder="Example: 450"
-              keyboardType="numeric"
+              label="Food name"
+              value={foodName}
+              onChangeText={setFoodName}
+              placeholder="Food name"
+              editable={false}
             />
 
-            <View style={styles.twoColumn}>
-              <View style={styles.column}>
+            {hasFoodServing() ? (
+              <>
                 <AppInput
-                  label="Protein"
-                  value={proteinG}
-                  onChangeText={setProteinG}
-                  placeholder="g"
-                  keyboardType="numeric"
+                  label="Serving label"
+                  value={servingLabel}
+                  onChangeText={setServingLabel}
+                  placeholder="Serving label"
+                  editable={false}
                 />
-              </View>
 
-              <View style={styles.column}>
                 <AppInput
-                  label="Carbs"
-                  value={carbsG}
-                  onChangeText={setCarbsG}
-                  placeholder="g"
+                  label="Quantity"
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  placeholder="Example: 1"
                   keyboardType="numeric"
                 />
-              </View>
-            </View>
+              </>
+            ) : (
+              <AppInput
+                label="Total grams"
+                value={totalGrams}
+                onChangeText={setTotalGrams}
+                placeholder="Example: 150"
+                keyboardType="numeric"
+              />
+            )}
 
-            <View style={styles.twoColumn}>
-              <View style={styles.column}>
-                <AppInput
-                  label="Fat"
-                  value={fatG}
-                  onChangeText={setFatG}
-                  placeholder="g"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.column}>
-                <AppInput
-                  label="Fiber"
-                  value={fiberG}
-                  onChangeText={setFiberG}
-                  placeholder="g"
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-
-            <View style={styles.twoColumn}>
-              <View style={styles.column}>
-                <AppInput
-                  label="Sugar"
-                  value={sugarG}
-                  onChangeText={setSugarG}
-                  placeholder="g"
-                  keyboardType="numeric"
-                />
-              </View>
-
-              <View style={styles.column}>
-                <AppInput
-                  label="Sodium"
-                  value={sodiumMg}
-                  onChangeText={setSodiumMg}
-                  placeholder="mg"
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
+            <AppInput
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Optional"
+              multiline
+            />
           </View>
         </AppCard>
       ) : (
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Food database entry</Text>
-          <Text style={styles.infoText}>
-            Nutrition will be recalculated from the saved food and quantity. To change
-            calories/macros directly, use manual quick entry.
-          </Text>
+        <>
+          <AppCard gap={16} style={styles.card}>
+            <SectionHeader
+              title="Manual entry details"
+              subtitle="These values are saved exactly as entered."
+            />
 
-          <Text style={styles.infoMetric}>
-            Current calories: {formatNumber(entry.nutrition.calories)} kcal
-          </Text>
-        </View>
+            <View style={styles.form}>
+              <AppDatePicker label="Date" value={loggedForDate} onChange={setLoggedForDate} />
+
+              <AppInput
+                label="Food name"
+                value={foodName}
+                onChangeText={setFoodName}
+                placeholder="Example: homemade curry"
+              />
+
+              <AppInput
+                label="Serving label"
+                value={servingLabel}
+                onChangeText={setServingLabel}
+                placeholder="Example: 1 plate, 1 bowl"
+              />
+
+              <AppInput
+                label="Notes"
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Optional"
+                multiline
+              />
+            </View>
+          </AppCard>
+
+          <AppCard gap={16} style={styles.card}>
+            <SectionHeader
+              title="Manual nutrition"
+              subtitle="Edit calories and macros directly for this entry."
+            />
+
+            <View style={styles.form}>
+              <AppInput
+                label="Calories"
+                value={calories}
+                onChangeText={setCalories}
+                placeholder="Example: 450"
+                keyboardType="numeric"
+              />
+
+              <View style={styles.twoColumn}>
+                <View style={styles.column}>
+                  <AppInput
+                    label="Protein"
+                    value={proteinG}
+                    onChangeText={setProteinG}
+                    placeholder="g"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.column}>
+                  <AppInput
+                    label="Carbs"
+                    value={carbsG}
+                    onChangeText={setCarbsG}
+                    placeholder="g"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.twoColumn}>
+                <View style={styles.column}>
+                  <AppInput
+                    label="Fat"
+                    value={fatG}
+                    onChangeText={setFatG}
+                    placeholder="g"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.column}>
+                  <AppInput
+                    label="Fiber"
+                    value={fiberG}
+                    onChangeText={setFiberG}
+                    placeholder="g"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.twoColumn}>
+                <View style={styles.column}>
+                  <AppInput
+                    label="Sugar"
+                    value={sugarG}
+                    onChangeText={setSugarG}
+                    placeholder="g"
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={styles.column}>
+                  <AppInput
+                    label="Sodium"
+                    value={sodiumMg}
+                    onChangeText={setSodiumMg}
+                    placeholder="mg"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+            </View>
+          </AppCard>
+        </>
       )}
+
+      {foodMode ? (
+        <View style={styles.infoCard}>
+          <View style={styles.infoIcon}>
+            <Text style={styles.infoIconText}>ℹ</Text>
+          </View>
+
+          <View style={styles.infoCopy}>
+            <Text style={styles.infoTitle}>Food database entry</Text>
+            <Text style={styles.infoText}>
+              Calories and macros are recalculated from the saved food and quantity. Manual
+              nutrition editing is only available for manual quick entries.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {!foodMode ? (
+        <View style={styles.nutritionPreview}>
+          <Text style={styles.previewLabel}>Updated preview</Text>
+
+          <View style={styles.previewGrid}>
+            <PreviewMetric
+              label="Calories"
+              value={formatNumber(toNullableNumber(calories), ' kcal')}
+              color={colors.primary}
+            />
+            <PreviewMetric
+              label="Protein"
+              value={formatDecimal(toNullableNumber(proteinG), 'g')}
+              color={macroTones.protein.color}
+            />
+            <PreviewMetric
+              label="Carbs"
+              value={formatDecimal(toNullableNumber(carbsG), 'g')}
+              color={macroTones.carbs.color}
+            />
+            <PreviewMetric
+              label="Fat"
+              value={formatDecimal(toNullableNumber(fatG), 'g')}
+              color={macroTones.fat.color}
+            />
+          </View>
+        </View>
+      ) : null}
 
       {formError ? (
         <View style={styles.errorSpacing}>
@@ -506,67 +639,183 @@ export default function EditMealEntryScreen() {
   )
 }
 
+function PreviewMetric({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.previewMetric}>
+      <View style={[styles.previewDot, { backgroundColor: color }]} />
+      <Text style={styles.previewMetricLabel}>{label}</Text>
+      <Text style={styles.previewMetricValue}>{value}</Text>
+    </View>
+  )
+}
+
 const styles = StyleSheet.create({
   header: {
-    gap: 8,
-    marginBottom: 20
+    gap: spacing.xs,
+    marginBottom: spacing.lg
+  },
+  eyebrow: {
+    ...typography.tiny,
+    color: colors.primary,
+    textTransform: 'uppercase'
   },
   title: {
-    fontSize: 30,
-    fontWeight: '900',
-    color: colors.text
+    ...typography.title,
+    color: colors.heading
   },
   subtitle: {
     color: colors.muted,
     fontSize: 16,
     lineHeight: 24
   },
+  entryHero: {
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.sm
+  },
+  entryHeroIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  entryHeroEmoji: {
+    fontSize: 25
+  },
+  entryHeroCopy: {
+    flex: 1,
+    gap: 2
+  },
+  entryHeroLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase'
+  },
+  entryHeroTitle: {
+    color: colors.heading,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  entryHeroMeta: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '900'
+  },
   card: {
-    marginBottom: 16
+    marginBottom: spacing.lg
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10
+    gap: spacing.sm
   },
   form: {
-    gap: 14
+    gap: spacing.md
   },
   twoColumn: {
     flexDirection: 'row',
-    gap: 12
+    gap: spacing.md
   },
   column: {
     flex: 1
   },
   infoCard: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: 18,
+    backgroundColor: colors.cardWarm,
+    borderRadius: radius['2xl'],
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 16,
-    gap: 8
+    borderColor: colors.borderStrong,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.md
+  },
+  infoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  infoIconText: {
+    color: colors.primary,
+    fontSize: 18,
+    fontWeight: '900'
+  },
+  infoCopy: {
+    flex: 1,
+    gap: spacing.xs
   },
   infoTitle: {
-    color: colors.text,
+    color: colors.heading,
     fontSize: 16,
     fontWeight: '900'
   },
   infoText: {
-    color: colors.muted,
+    color: colors.mutedDark,
     fontSize: 14,
-    lineHeight: 21
+    lineHeight: 21,
+    fontWeight: '600'
   },
-  infoMetric: {
-    color: colors.primary,
+  nutritionPreview: {
+    backgroundColor: colors.card,
+    borderRadius: radius['2xl'],
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.sm
+  },
+  previewLabel: {
+    color: colors.heading,
+    fontSize: 16,
+    fontWeight: '900'
+  },
+  previewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm
+  },
+  previewMetric: {
+    width: '48%',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    gap: 3
+  },
+  previewDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginBottom: spacing.xs
+  },
+  previewMetricLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '900'
+  },
+  previewMetricValue: {
+    color: colors.heading,
     fontSize: 15,
     fontWeight: '900'
   },
   errorSpacing: {
-    marginBottom: 16
+    marginBottom: spacing.lg
   },
   actions: {
-    gap: 12
+    gap: spacing.md,
+    marginBottom: spacing.xl
   }
 })
