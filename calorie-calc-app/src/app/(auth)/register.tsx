@@ -1,4 +1,4 @@
-import { Link } from 'expo-router'
+import { Link, router } from 'expo-router'
 import { useRef, useState } from 'react'
 import { Alert, StyleSheet, Text, View } from 'react-native'
 
@@ -51,10 +51,10 @@ export default function RegisterScreen() {
   const { signUp } = useAuth()
   const submittingRef = useRef(false)
 
-  const [name, setName] = useState('Test User')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('Password123')
-  const [passwordConfirmation, setPasswordConfirmation] = useState('Password123')
+  const [password, setPassword] = useState('')
+  const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -89,6 +89,8 @@ export default function RegisterScreen() {
         password_confirmation: passwordConfirmation,
         device_name: 'expo-app'
       })
+
+      router.replace('/onboarding/profile')
     } catch (error) {
       if (error instanceof ApiError) {
         const firstValidationError = error.errors ? Object.values(error.errors).flat()[0] : null

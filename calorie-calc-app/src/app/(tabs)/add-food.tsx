@@ -1,5 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
@@ -150,6 +151,7 @@ export default function AddFoodScreen() {
   const [updatingFavoriteFoodId, setUpdatingFavoriteFoodId] = useState<number | null>(null)
 
   const selectedMealTone = mealTones[mealType]
+  const isSearching = search.trim().length > 0
 
   const selectedServing = useMemo(() => {
     if (!selectedFood || !selectedServingId) {
@@ -537,36 +539,70 @@ export default function AddFoodScreen() {
         />
       </View>
 
-      <View style={styles.quickGrid}>
-        <CommandCard
-          icon="✎"
-          title="Manual"
-          subtitle="Quick calories"
-          onPress={() =>
-            router.push({
-              pathname: '/meal/manual',
-              params: {
-                date: loggedForDate,
-                mealType
-              }
-            })
-          }
-        />
+      {isSearching && !selectedFood ? (
+        <FoodShelf
+          title="Search results"
+          subtitle={loadingFoods ? 'Searching...' : `${foods.length} result(s) found`}
+        >
+          {loadingFoods ? (
+            <Text style={styles.loadingText}>Searching foods...</Text>
+          ) : foods.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No foods found</Text>
+              <Text style={styles.emptyText}>
+                Try another search term, add it manually, or create a custom food.
+              </Text>
+            </View>
+          ) : (
+            foods.map((food) => (
+              <FoodCard
+                key={food.id}
+                food={food}
+                favorite={favoriteFoodIds.includes(food.id)}
+                updatingFavorite={updatingFavoriteFoodId === food.id}
+                onSelect={() => selectFood(food)}
+                onToggleFavorite={(event) => {
+                  event.stopPropagation()
+                  toggleFavoriteFood(food)
+                }}
+              />
+            ))
+          )}
+        </FoodShelf>
+      ) : null}
 
-        <CommandCard
-          icon="▦"
-          title="Barcode"
-          subtitle="Packaged food"
-          onPress={() => router.push('/meal/barcode')}
-        />
+      {!isSearching && !selectedFood ? (
+        <View style={styles.quickGrid}>
+          <CommandCard
+            icon="✎"
+            title="Manual"
+            subtitle="Quick calories"
+            onPress={() =>
+              router.push({
+                pathname: '/meal/manual',
+                params: {
+                  date: loggedForDate,
+                  mealType
+                }
+              })
+            }
+          />
 
-        <CommandCard
-          icon="+"
-          title="Custom"
-          subtitle="Create food"
-          onPress={() => router.push('/meal/custom-food')}
-        />
-      </View>
+          <CommandCard
+            icon="▦"
+            title="Barcode"
+            subtitle="Packaged food"
+            onPress={() => router.push('/meal/barcode')}
+          />
+
+          <CommandCard
+            icon="+"
+            title="Custom"
+            subtitle="Create food"
+            onPress={() => router.push('/meal/custom-food')}
+          />
+        </View>
+      ) : null}
 
       {selectedFood ? (
         <View style={styles.selectedCard}>
@@ -743,7 +779,7 @@ export default function AddFoodScreen() {
 
           <AppButton title="Log food" loading={saving} onPress={handleLogFood} />
         </View>
-      ) : (
+      ) : !isSearching ? (
         <>
           {favoriteFoods.length > 0 || loadingFavoriteFoods ? (
             <FoodShelf title="Favourite foods" subtitle="Pinned foods you use often.">
@@ -809,7 +845,7 @@ export default function AddFoodScreen() {
             ))}
           </FoodShelf>
         </>
-      )}
+      ) : null}
     </Screen>
   )
 }
@@ -844,7 +880,7 @@ function FoodShelf({
 }: {
   title: string
   subtitle: string
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <View style={styles.shelf}>
