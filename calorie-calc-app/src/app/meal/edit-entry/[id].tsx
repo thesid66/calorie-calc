@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
@@ -116,7 +116,7 @@ export default function EditMealEntryScreen() {
   const [sodiumMg, setSodiumMg] = useState('')
   const [notes, setNotes] = useState('')
 
-  async function loadMealEntry() {
+  const loadMealEntry = useCallback(async () => {
     if (!mealEntryId || Number.isNaN(mealEntryId)) {
       setFormError('Invalid meal entry.')
       setLoading(false)
@@ -174,11 +174,11 @@ export default function EditMealEntryScreen() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [mealEntryId])
 
   useEffect(() => {
-    loadMealEntry()
-  }, [mealEntryId])
+    void loadMealEntry()
+  }, [loadMealEntry])
 
   function isFoodMode() {
     return entry?.food_id !== null && entry?.food_id !== undefined

@@ -9,7 +9,7 @@ import { searchFoods } from '@/api/foods'
 import { getRecentMealEntries, storeMealEntry } from '@/api/mealEntries'
 import { AppButton, AppDatePicker, AppInput, Chip, ErrorCard, Screen } from '@/components/ui'
 import { colors } from '@/constants/colors'
-import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
+import { mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealEntry, MealType } from '@/types/diary'
 import type { Food, FoodServing } from '@/types/foods'
 

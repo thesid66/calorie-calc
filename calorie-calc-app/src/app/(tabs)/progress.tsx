@@ -158,13 +158,7 @@ export default function ProgressScreen() {
     [selectedRangeDays]
   )
 
-  useFocusEffect(
-    useCallback(() => {
-      loadProgress()
-    }, [range.from, range.to])
-  )
-
-  async function loadProgress() {
+  const loadProgress = useCallback(async () => {
     try {
       setRefreshing(true)
 
@@ -203,7 +197,13 @@ export default function ProgressScreen() {
       setLoading(false)
       setRefreshing(false)
     }
-  }
+  }, [range])
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadProgress()
+    }, [loadProgress])
+  )
 
   function validateForm(): string | null {
     if (!loggedOn.trim()) {
