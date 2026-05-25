@@ -1,10 +1,10 @@
 import { router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native'
 
 import { lookupBarcode, saveBarcodeAsFood } from '@/api/barcodes'
 import { ApiError } from '@/api/client'
-import { AppButton, AppCard, AppInput, ErrorCard, Screen } from '@/components/ui'
+import { AppButton, AppCard, AppInput, appToast, ErrorCard, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { BarcodeLookup } from '@/types/barcodes'
@@ -50,7 +50,7 @@ export default function BarcodeLookupScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check barcode', validationError)
+      appToast.warning({ title: 'Check barcode', message: validationError })
       return
     }
 
@@ -86,12 +86,12 @@ export default function BarcodeLookupScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Barcode lookup failed', message)
+        appToast.error({ title: 'Barcode lookup failed', message })
         return
       }
 
       setFormError('Barcode lookup failed. Please try again.')
-      Alert.alert('Barcode lookup failed', 'Please try again.')
+      appToast.error({ title: 'Barcode lookup failed', message: 'Please try again.' })
     } finally {
       setLoading(false)
     }
@@ -113,7 +113,10 @@ export default function BarcodeLookupScreen() {
 
       await saveBarcodeAsFood(cleanBarcode)
 
-      Alert.alert('Saved', 'Barcode product was saved to your food database.')
+      appToast.success({
+        title: 'Food saved',
+        message: 'Barcode product was saved to your food database.'
+      })
 
       const refreshed = await lookupBarcode(cleanBarcode, true)
       setLookup(refreshed.data.barcode_lookup)
@@ -123,12 +126,12 @@ export default function BarcodeLookupScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not save food', message)
+        appToast.error({ title: 'Could not save food', message })
         return
       }
 
       setFormError('Could not save food. Please try again.')
-      Alert.alert('Could not save food', 'Please try again.')
+      appToast.error({ title: 'Could not save food', message: 'Please try again.' })
     } finally {
       savingRef.current = false
       setSavingFood(false)

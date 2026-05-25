@@ -5,7 +5,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
 import { copyDayEntries, copyMealEntries, deleteMealEntry } from '@/api/mealEntries'
-import { AppButton, AppCard, LoadingState, Screen } from '@/components/ui'
+import { AppButton, AppCard, appToast, LoadingState, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { Diary, MealEntry, MealType } from '@/types/diary'
@@ -126,11 +126,14 @@ export default function DiaryScreen() {
       setDiary(response.data)
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load diary', error.message)
+        appToast.error({ title: 'Could not load diary', message: error.message })
         return
       }
 
-      Alert.alert('Could not load diary', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load diary',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -170,11 +173,11 @@ export default function DiaryScreen() {
       await loadDiary(selectedDate)
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not delete entry', error.message)
+        appToast.error({ title: 'Could not delete entry', message: error.message })
         return
       }
 
-      Alert.alert('Could not delete entry', 'Please try again.')
+      appToast.error({ title: 'Could not delete entry', message: 'Please try again.' })
     } finally {
       setDeletingEntryId(null)
     }
@@ -194,18 +197,21 @@ export default function DiaryScreen() {
       await loadDiary(selectedDate)
 
       if (response.data.copied_count === 0) {
-        Alert.alert('Nothing to copy', `No meals found on ${fromDate}.`)
+        appToast.info({ title: 'Nothing to copy', message: `No meals found on ${fromDate}.` })
         return
       }
 
-      Alert.alert('Day copied', `${response.data.copied_count} item(s) copied from ${fromDate}.`)
+      appToast.success({
+        title: 'Day copied',
+        message: `${response.data.copied_count} item(s) copied from ${fromDate}.`
+      })
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not copy day', error.message)
+        appToast.error({ title: 'Could not copy day', message: error.message })
         return
       }
 
-      Alert.alert('Could not copy day', 'Please try again.')
+      appToast.error({ title: 'Could not copy day', message: 'Please try again.' })
     } finally {
       setCopyingDay(false)
     }
@@ -227,21 +233,24 @@ export default function DiaryScreen() {
       await loadDiary(selectedDate)
 
       if (response.data.copied_count === 0) {
-        Alert.alert(
-          'Nothing to copy',
-          `No ${mealLabels[mealType].toLowerCase()} found on ${fromDate}.`
-        )
+        appToast.info({
+          title: 'Nothing to copy',
+          message: `No ${mealLabels[mealType].toLowerCase()} found on ${fromDate}.`
+        })
         return
       }
 
-      Alert.alert('Meal copied', `${response.data.copied_count} item(s) copied from ${fromDate}.`)
+      appToast.success({
+        title: 'Meal copied',
+        message: `${response.data.copied_count} item(s) copied from ${fromDate}.`
+      })
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not copy meal', error.message)
+        appToast.error({ title: 'Could not copy meal', message: error.message })
         return
       }
 
-      Alert.alert('Could not copy meal', 'Please try again.')
+      appToast.error({ title: 'Could not copy meal', message: 'Please try again.' })
     } finally {
       setCopyingMealType(null)
     }

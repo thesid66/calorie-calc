@@ -1,10 +1,10 @@
 import { router } from 'expo-router'
 import { useEffect, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getNutritionGoal } from '@/api/goals'
-import { AppButton, AppCard, ErrorCard, LoadingState, Screen } from '@/components/ui'
+import { AppButton, AppCard, appToast, ErrorCard, LoadingState, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { NutritionGoal } from '@/types/goals'
@@ -62,11 +62,14 @@ export default function OnboardingSummaryScreen() {
       setGoal(response.data.active_goal)
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load goal summary', error.message)
+        appToast.error({ title: 'Could not load goal summary', message: error.message })
         return
       }
 
-      Alert.alert('Could not load goal summary', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load goal summary',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoading(false)
     }

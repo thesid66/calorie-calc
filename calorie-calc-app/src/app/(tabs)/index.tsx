@@ -1,10 +1,10 @@
 import { router, useFocusEffect } from 'expo-router'
 import { useCallback, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getDiary } from '@/api/diary'
-import { AppButton, AppCard, LoadingState, Screen } from '@/components/ui'
+import { AppButton, AppCard, appToast, LoadingState, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import { useAuth } from '@/providers/AuthProvider'
@@ -84,12 +84,13 @@ export default function DashboardScreen() {
       const response = await getDiary(todayDateString())
       setDiary(response.data)
     } catch (error) {
-      Alert.alert(
-        'Could not load dashboard',
-        error instanceof ApiError
-          ? error.message
-          : 'Please check your API connection and try again.'
-      )
+      appToast.error({
+        title: 'Could not load dashboard',
+        message:
+          error instanceof ApiError
+            ? error.message
+            : 'Please check your API connection and try again.'
+      })
     } finally {
       setLoading(false)
       setRefreshing(false)

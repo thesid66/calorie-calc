@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
@@ -10,10 +10,11 @@ import {
   AppCard,
   AppDatePicker,
   AppInput,
+  appToast,
   ErrorCard,
   LoadingState,
   Screen
-} from '@/components/ui'
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { radius, shadows, spacing, typography } from '@/constants/theme'
 import type { ActivityLevel, SexForFormula, UnitSystem } from '@/types/profile'
@@ -120,11 +121,14 @@ export default function OnboardingProfileScreen() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load profile setup', error.message)
+        appToast.error({ title: 'Could not load profile setup', message: error.message })
         return
       }
 
-      Alert.alert('Could not load profile setup', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load profile setup',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoadingInitialData(false)
     }
@@ -173,7 +177,7 @@ export default function OnboardingProfileScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check your details', validationError)
+      appToast.warning({ title: 'Check your details', message: validationError })
       return
     }
 
@@ -206,13 +210,13 @@ export default function OnboardingProfileScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not save profile', message)
+        appToast.error({ title: 'Could not save profile', message })
 
         return
       }
 
       setFormError('Could not save profile. Please try again.')
-      Alert.alert('Could not save profile', 'Please try again.')
+      appToast.error({ title: 'Could not save profile', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

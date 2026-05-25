@@ -1,9 +1,9 @@
 import { Link, router } from 'expo-router'
 import { useRef, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
-import { AppButton, AppCard, AppInput, ErrorCard, Screen } from '@/components/ui'
+import { AppButton, AppCard, AppInput, appToast, ErrorCard, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { APP_NAME } from '@/constants/config'
 import { radius, shadows, spacing, typography } from '@/constants/theme'
@@ -74,7 +74,7 @@ export default function RegisterScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check account details', validationError)
+      appToast.warning({ title: 'Check account details', message: validationError })
       return
     }
 
@@ -97,12 +97,15 @@ export default function RegisterScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Registration failed', message)
+        appToast.error({ title: 'Registration failed', message })
         return
       }
 
       setFormError('Unable to create account. Please try again.')
-      Alert.alert('Registration failed', 'Unable to create account. Please try again.')
+      appToast.error({
+        title: 'Registration failed',
+        message: 'Unable to create account. Please try again.'
+      })
     } finally {
       submittingRef.current = false
       setLoading(false)

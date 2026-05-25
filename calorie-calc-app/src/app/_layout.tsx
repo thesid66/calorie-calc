@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { AppToastHost } from '../components/ui'
 
 import { AuthProvider } from '@/providers/AuthProvider'
 
@@ -15,6 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="meal" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <AppToastHost />
     </AuthProvider>
   )
 }

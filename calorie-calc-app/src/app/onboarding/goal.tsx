@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
@@ -10,11 +10,12 @@ import {
   AppButton,
   AppCard,
   AppInput,
+  appToast,
   Chip,
   ErrorCard,
   LoadingState,
   Screen
-} from '@/components/ui'
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { GoalType } from '@/types/goals'
@@ -181,11 +182,14 @@ export default function OnboardingGoalScreen() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load goal setup', error.message)
+        appToast.error({ title: 'Could not load goal setup', message: error.message })
         return
       }
 
-      Alert.alert('Could not load goal setup', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load goal setup',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoadingInitialData(false)
     }
@@ -226,7 +230,7 @@ export default function OnboardingGoalScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check your goal', validationError)
+      appToast.warning({ title: 'Check your goal', message: validationError })
       return
     }
 
@@ -252,13 +256,13 @@ export default function OnboardingGoalScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not save goal', message)
+        appToast.error({ title: 'Could not save goal', message })
 
         return
       }
 
       setFormError('Could not save goal. Please try again.')
-      Alert.alert('Could not save goal', 'Please try again.')
+      appToast.error({ title: 'Could not save goal', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

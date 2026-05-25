@@ -10,11 +10,12 @@ import {
   AppCard,
   AppDatePicker,
   AppInput,
+  appToast,
   Chip,
   ErrorCard,
   LoadingState,
   Screen
-} from '@/components/ui'
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type {
@@ -188,11 +189,14 @@ export default function ProgressScreen() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load progress', error.message)
+        appToast.error({ title: 'Could not load progress', message: error.message })
         return
       }
 
-      Alert.alert('Could not load progress', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load progress',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -232,7 +236,7 @@ export default function ProgressScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check weight log', validationError)
+      appToast.warning({ title: 'Check weight log', message: validationError })
       return
     }
 
@@ -254,13 +258,13 @@ export default function ProgressScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not save weight log', message)
+        appToast.error({ title: 'Could not save weight log', message })
 
         return
       }
 
       setFormError('Could not save weight log. Please try again.')
-      Alert.alert('Could not save weight log', 'Please try again.')
+      appToast.error({ title: 'Could not save weight log', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)
@@ -299,11 +303,11 @@ export default function ProgressScreen() {
       await loadProgress()
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not delete weight log', error.message)
+        appToast.error({ title: 'Could not delete weight log', message: error.message })
         return
       }
 
-      Alert.alert('Could not delete weight log', 'Please try again.')
+      appToast.error({ title: 'Could not delete weight log', message: 'Please try again.' })
     } finally {
       setDeletingLogId(null)
     }

@@ -1,10 +1,18 @@
 import { router } from 'expo-router'
 import { useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { createCustomFood } from '@/api/foods'
-import { AppButton, AppCard, AppInput, Chip, ErrorCard, Screen } from '@/components/ui'
+import {
+  AppButton,
+  AppCard,
+  AppInput,
+  appToast,
+  Chip,
+  ErrorCard,
+  Screen
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { CreateCustomFoodPayload } from '@/types/foods'
@@ -211,7 +219,7 @@ export default function CustomFoodScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check custom food', validationError)
+      appToast.warning({ title: 'Check custom food', message: validationError })
       return
     }
 
@@ -252,7 +260,10 @@ export default function CustomFoodScreen() {
 
       blurActiveElement()
 
-      Alert.alert('Food created', `${payload.name} was saved to your food database.`)
+      appToast.success({
+        title: 'Food created',
+        message: `${payload.name} was saved to your food database.`
+      })
 
       resetForm()
 
@@ -263,13 +274,13 @@ export default function CustomFoodScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not create food', message)
+        appToast.error({ title: 'Could not create food', message })
 
         return
       }
 
       setFormError('Could not create food. Please try again.')
-      Alert.alert('Could not create food', 'Please try again.')
+      appToast.error({ title: 'Could not create food', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

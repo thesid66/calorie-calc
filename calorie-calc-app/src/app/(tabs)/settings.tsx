@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { getActivityLevels } from '@/api/activityLevels'
 import { ApiError } from '@/api/client'
@@ -11,11 +11,12 @@ import {
   AppCard,
   AppDatePicker,
   AppInput,
+  appToast,
   Chip,
   ErrorCard,
   LoadingState,
   Screen
-} from '@/components/ui'
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import { useAuth } from '@/providers/AuthProvider'
@@ -190,11 +191,14 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load settings', error.message)
+        appToast.error({ title: 'Could not load settings', message: error.message })
         return
       }
 
-      Alert.alert('Could not load settings', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load settings',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -256,7 +260,7 @@ export default function SettingsScreen() {
 
     if (validationError) {
       setProfileError(validationError)
-      Alert.alert('Check profile', validationError)
+      appToast.warning({ title: 'Check profile', message: validationError })
       return
     }
 
@@ -281,20 +285,20 @@ export default function SettingsScreen() {
 
       setProfile(response.data.profile)
 
-      Alert.alert('Profile updated', 'Your profile details were saved.')
+      appToast.success({ title: 'Profile updated', message: 'Your profile details were saved.' })
     } catch (error) {
       if (error instanceof ApiError) {
         const firstValidationError = error.errors ? Object.values(error.errors).flat()[0] : null
         const message = firstValidationError ?? error.message
 
         setProfileError(message)
-        Alert.alert('Could not update profile', message)
+        appToast.error({ title: 'Could not update profile', message })
 
         return
       }
 
       setProfileError('Could not update profile. Please try again.')
-      Alert.alert('Could not update profile', 'Please try again.')
+      appToast.error({ title: 'Could not update profile', message: 'Please try again.' })
     } finally {
       profileSubmittingRef.current = false
       setProfileSaving(false)
@@ -312,7 +316,7 @@ export default function SettingsScreen() {
 
     if (validationError) {
       setGoalError(validationError)
-      Alert.alert('Check goal', validationError)
+      appToast.warning({ title: 'Check goal', message: validationError })
       return
     }
 
@@ -332,20 +336,23 @@ export default function SettingsScreen() {
 
       setActiveGoal(response.data.active_goal)
 
-      Alert.alert('Goal updated', 'Your calorie and macro targets were recalculated.')
+      appToast.success({
+        title: 'Goal updated',
+        message: 'Your calorie and macro targets were recalculated.'
+      })
     } catch (error) {
       if (error instanceof ApiError) {
         const firstValidationError = error.errors ? Object.values(error.errors).flat()[0] : null
         const message = firstValidationError ?? error.message
 
         setGoalError(message)
-        Alert.alert('Could not update goal', message)
+        appToast.error({ title: 'Could not update goal', message })
 
         return
       }
 
       setGoalError('Could not update goal. Please try again.')
-      Alert.alert('Could not update goal', 'Please try again.')
+      appToast.error({ title: 'Could not update goal', message: 'Please try again.' })
     } finally {
       goalSubmittingRef.current = false
       setGoalSaving(false)
@@ -356,7 +363,7 @@ export default function SettingsScreen() {
     try {
       await signOut()
     } catch {
-      Alert.alert('Logout failed', 'Please try again.')
+      appToast.error({ title: 'Logout failed', message: 'Please try again.' })
     }
   }
 

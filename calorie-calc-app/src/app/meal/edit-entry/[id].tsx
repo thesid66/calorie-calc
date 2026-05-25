@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { getMealEntry, updateMealEntry, type UpdateMealEntryPayload } from '@/api/mealEntries'
@@ -9,12 +9,13 @@ import {
   AppCard,
   AppDatePicker,
   AppInput,
+  appToast,
   Chip,
   ErrorCard,
   LoadingState,
   Screen,
   SectionHeader
-} from '@/components/ui'
+} from '../../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealEntry, MealType } from '@/types/diary'
@@ -165,12 +166,12 @@ export default function EditMealEntryScreen() {
     } catch (error) {
       if (error instanceof ApiError) {
         setFormError(error.message)
-        Alert.alert('Could not load meal entry', error.message)
+        appToast.error({ title: 'Could not load meal entry', message: error.message })
         return
       }
 
       setFormError('Could not load meal entry.')
-      Alert.alert('Could not load meal entry', 'Please try again.')
+      appToast.error({ title: 'Could not load meal entry', message: 'Please try again.' })
     } finally {
       setLoading(false)
     }
@@ -259,7 +260,7 @@ export default function EditMealEntryScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check meal entry', validationError)
+      appToast.warning({ title: 'Check meal entry', message: validationError })
       return
     }
 
@@ -306,7 +307,7 @@ export default function EditMealEntryScreen() {
 
       blurActiveElement()
 
-      Alert.alert('Meal updated', 'Your diary entry was updated.')
+      appToast.success({ title: 'Meal updated', message: 'Your diary entry was updated.' })
 
       router.push('/(tabs)/diary')
     } catch (error) {
@@ -315,13 +316,13 @@ export default function EditMealEntryScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not update meal entry', message)
+        appToast.error({ title: 'Could not update meal entry', message })
 
         return
       }
 
       setFormError('Could not update meal entry. Please try again.')
-      Alert.alert('Could not update meal entry', 'Please try again.')
+      appToast.error({ title: 'Could not update meal entry', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

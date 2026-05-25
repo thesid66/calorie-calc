@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { storeMealEntry, type StoreManualMealEntryPayload } from '@/api/mealEntries'
@@ -9,10 +9,11 @@ import {
   AppCard,
   AppDatePicker,
   AppInput,
+  appToast,
   Chip,
   ErrorCard,
   Screen
-} from '@/components/ui'
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { macroTones, mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealType } from '@/types/diary'
@@ -233,7 +234,7 @@ export default function ManualEntryScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check your entry', validationError)
+      appToast.warning({ title: 'Check your entry', message: validationError })
       return
     }
 
@@ -261,7 +262,10 @@ export default function ManualEntryScreen() {
 
       blurActiveElement()
 
-      Alert.alert('Entry logged', `${payload.manual_food_name} was added to your diary.`)
+      appToast.success({
+        title: 'Entry logged',
+        message: `${payload.manual_food_name} was added to your diary.`
+      })
 
       resetForm()
 
@@ -272,13 +276,13 @@ export default function ManualEntryScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not log entry', message)
+        appToast.error({ title: 'Could not log entry', message })
 
         return
       }
 
       setFormError('Could not log entry. Please try again.')
-      Alert.alert('Could not log entry', 'Please try again.')
+      appToast.error({ title: 'Could not log entry', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

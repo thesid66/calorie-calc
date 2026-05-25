@@ -1,13 +1,21 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
 import { addFoodFavorite, getFoodFavorites, removeFoodFavorite } from '@/api/foodFavorites'
 import { searchFoods } from '@/api/foods'
 import { getRecentMealEntries, storeMealEntry } from '@/api/mealEntries'
-import { AppButton, AppDatePicker, AppInput, Chip, ErrorCard, Screen } from '@/components/ui'
+import {
+  AppButton,
+  AppDatePicker,
+  AppInput,
+  appToast,
+  Chip,
+  ErrorCard,
+  Screen
+} from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { mealTones, radius, shadows, spacing, typography } from '@/constants/theme'
 import type { MealEntry, MealType } from '@/types/diary'
@@ -178,11 +186,14 @@ export default function AddFoodScreen() {
       setFoods(response.data.foods)
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not load foods', error.message)
+        appToast.error({ title: 'Could not load foods', message: error.message })
         return
       }
 
-      Alert.alert('Could not load foods', 'Please check your API connection and try again.')
+      appToast.error({
+        title: 'Could not load foods',
+        message: 'Please check your API connection and try again.'
+      })
     } finally {
       setLoadingFoods(false)
     }
@@ -343,11 +354,11 @@ export default function AddFoodScreen() {
       }
     } catch (error) {
       if (error instanceof ApiError) {
-        Alert.alert('Could not update favourite', error.message)
+        appToast.error({ title: 'Could not update favourite', message: error.message })
         return
       }
 
-      Alert.alert('Could not update favourite', 'Please try again.')
+      appToast.error({ title: 'Could not update favourite', message: 'Please try again.' })
     } finally {
       setUpdatingFavoriteFoodId(null)
     }
@@ -417,7 +428,7 @@ export default function AddFoodScreen() {
         })
       }
 
-      Alert.alert('Food logged', `${entry.food_name} was added to your diary.`)
+      appToast.success({ title: 'Food logged', message: `${entry.food_name} was added to your diary.` })
 
       router.push('/(tabs)/diary')
     } catch (error) {
@@ -426,13 +437,13 @@ export default function AddFoodScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not log recent food', message)
+        appToast.error({ title: 'Could not log recent food', message })
 
         return
       }
 
       setFormError('Could not log recent food. Please try again.')
-      Alert.alert('Could not log recent food', 'Please try again.')
+      appToast.error({ title: 'Could not log recent food', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setQuickLoggingEntryId(null)
@@ -450,7 +461,7 @@ export default function AddFoodScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check your meal entry', validationError)
+      appToast.warning({ title: 'Check your meal entry', message: validationError })
       return
     }
 
@@ -473,7 +484,10 @@ export default function AddFoodScreen() {
         notes: notes.trim() || null
       })
 
-      Alert.alert('Food logged', `${selectedFood.name} was added to your diary.`)
+      appToast.success({
+        title: 'Food logged',
+        message: `${selectedFood.name} was added to your diary.`
+      })
 
       clearSelectedFood()
 
@@ -484,13 +498,13 @@ export default function AddFoodScreen() {
         const message = firstValidationError ?? error.message
 
         setFormError(message)
-        Alert.alert('Could not log food', message)
+        appToast.error({ title: 'Could not log food', message })
 
         return
       }
 
       setFormError('Could not log food. Please try again.')
-      Alert.alert('Could not log food', 'Please try again.')
+      appToast.error({ title: 'Could not log food', message: 'Please try again.' })
     } finally {
       submittingRef.current = false
       setSaving(false)

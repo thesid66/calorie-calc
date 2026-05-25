@@ -1,9 +1,9 @@
 import { Link } from 'expo-router'
 import { useRef, useState } from 'react'
-import { Alert, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { ApiError } from '@/api/client'
-import { AppButton, AppCard, AppInput, ErrorCard, Screen } from '@/components/ui'
+import { AppButton, AppCard, AppInput, appToast, ErrorCard, Screen } from '../../components/ui'
 import { colors } from '@/constants/colors'
 import { APP_NAME } from '@/constants/config'
 import { radius, shadows, spacing, typography } from '@/constants/theme'
@@ -45,7 +45,7 @@ export default function LoginScreen() {
 
     if (validationError) {
       setFormError(validationError)
-      Alert.alert('Check login details', validationError)
+      appToast.warning({ title: 'Check login details', message: validationError })
       return
     }
 
@@ -61,12 +61,12 @@ export default function LoginScreen() {
     } catch (error) {
       if (error instanceof ApiError) {
         setFormError(error.message)
-        Alert.alert('Login failed', error.message)
+        appToast.error({ title: 'Login failed', message: error.message })
         return
       }
 
       setFormError('Unable to login. Please try again.')
-      Alert.alert('Login failed', 'Unable to login. Please try again.')
+      appToast.error({ title: 'Login failed', message: 'Unable to login. Please try again.' })
     } finally {
       submittingRef.current = false
       setLoading(false)
