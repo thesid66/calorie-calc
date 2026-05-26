@@ -19,6 +19,8 @@ class FoodForm
                 Section::make('Basic food details')
                     ->description('Main identity and searchable details for this food.')
                     ->columns(2)
+                    ->collapsible()
+                    ->columnSpanFull()
                     ->schema([
                         TextInput::make('name')
                             ->label('Food name')
@@ -63,6 +65,9 @@ class FoodForm
                 Section::make('Nutrition per 100g')
                     ->description('Nutrition values should be entered per 100 grams. The app uses these values to calculate servings.')
                     ->columns(4)
+                    ->collapsible()
+                    ->columnSpanFull()
+                    ->collapsed()
                     ->schema([
                         TextInput::make('calories_per_100g')
                             ->label('Calories')
@@ -125,6 +130,9 @@ class FoodForm
                 Section::make('Visibility and review')
                     ->description('Control whether users can see this food and whether it has been reviewed by admin.')
                     ->columns(2)
+                    ->collapsible()
+                    ->columnSpanFull()
+                    ->collapsed()
                     ->schema([
                         Toggle::make('is_public')
                             ->label('Public food')
@@ -143,6 +151,8 @@ class FoodForm
                     ->description('Track where this food came from. Usually only user-created foods need a creator.')
                     ->columns(2)
                     ->collapsible()
+                    ->columnSpanFull()
+                    ->collapsed()
                     ->schema([
                         Select::make('source')
                             ->required()

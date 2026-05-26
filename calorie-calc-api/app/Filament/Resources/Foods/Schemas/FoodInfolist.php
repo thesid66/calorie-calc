@@ -53,8 +53,9 @@ class FoodInfolist
                 Section::make('Nutrition per 100g')
                     ->description('Values used by the app to calculate calories and macros for servings.')
                     ->columnSpanFull()
-                    ->columns(3)
+                    ->columns(4)
                     ->collapsible()
+                    ->collapsed()
                     ->schema([
                         TextEntry::make('calories_per_100g')
                             ->label('Calories')
@@ -110,6 +111,7 @@ class FoodInfolist
                     ->columnSpanFull()
                     ->columns(2)
                     ->collapsible()
+                    ->collapsed()
                     ->schema([
                         IconEntry::make('is_public')
                             ->label('Public food')
