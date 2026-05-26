@@ -13,14 +13,24 @@ class UserGrowthChart extends ChartWidget
 
     protected static ?int $sort = 3;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
+
+    protected ?string $maxHeight = '260px';
+
+    protected ?array $options = [
+        'plugins' => [
+            'legend' => [
+                'display' => false,
+            ],
+        ],
+        'scales' => [
+            'y' => [
+                'beginAtZero' => true,
+            ],
+        ],
+    ];
 
     public ?string $filter = 'this_month';
-
-    public function getDescription(): ?string
-    {
-        return 'New user registrations over time, filterable by week, month, year, or all time.';
-    }
 
     protected function getFilters(): ?array
     {

@@ -12,9 +12,9 @@ class TopLoggedFoodsBarChart extends ChartWidget
 
     protected static ?int $sort = 10;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
-    protected ?string $maxHeight = '360px';
+    protected ?string $maxHeight = '240px';
 
     protected ?array $options = [
         'plugins' => [
@@ -29,10 +29,6 @@ class TopLoggedFoodsBarChart extends ChartWidget
         ],
     ];
 
-    public function getDescription(): ?string
-    {
-        return 'Bar chart of the foods users log most often.';
-    }
 
     protected function getData(): array
     {

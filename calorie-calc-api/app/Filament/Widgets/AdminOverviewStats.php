@@ -13,6 +13,13 @@ class AdminOverviewStats extends StatsOverviewWidget
 {
     protected static ?int $sort = 1;
 
+    protected int|string|array $columnSpan = '1';
+
+    protected function getColumns(): int
+    {
+        return 2;
+    }
+
     protected function getStats(): array
     {
         return [

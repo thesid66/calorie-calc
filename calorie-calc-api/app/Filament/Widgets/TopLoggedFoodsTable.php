@@ -12,7 +12,7 @@ class TopLoggedFoodsTable extends TableWidget
 {
     protected static ?int $sort = 11;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
     public function table(Table $table): Table
     {
@@ -37,20 +37,22 @@ class TopLoggedFoodsTable extends TableWidget
                     ->sortable()
                     ->formatStateUsing(fn ($state): string => number_format((int) $state)),
 
-                TextColumn::make('average_calories')
-                    ->label('Avg calories')
-                    ->sortable()
-                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 0).' kcal'),
-
-                TextColumn::make('total_calories')
-                    ->label('Total calories')
-                    ->sortable()
-                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 0).' kcal'),
-
                 TextColumn::make('last_logged_on')
                     ->label('Last logged')
                     ->date()
                     ->sortable(),
+
+                TextColumn::make('average_calories')
+                    ->label('Avg calories')
+                    ->sortable()
+                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 0).' kcal')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('total_calories')
+                    ->label('Total calories')
+                    ->sortable()
+                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 0).' kcal')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ]);
     }
 

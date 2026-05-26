@@ -11,14 +11,17 @@ class MealLoggingQualityChart extends ChartWidget
 
     protected static ?int $sort = 9;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
-    protected ?string $maxHeight = '320px';
+    protected ?string $maxHeight = '240px';
 
-    public function getDescription(): ?string
-    {
-        return 'Shows whether users are finding foods in the database or relying on manual food entries.';
-    }
+    protected ?array $options = [
+        'plugins' => [
+            'legend' => [
+                'position' => 'bottom',
+            ],
+        ],
+    ];
 
     protected function getData(): array
     {

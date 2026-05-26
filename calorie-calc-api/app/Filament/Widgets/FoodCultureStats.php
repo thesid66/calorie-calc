@@ -11,6 +11,13 @@ class FoodCultureStats extends StatsOverviewWidget
 {
     protected static ?int $sort = 5;
 
+    protected int|string|array $columnSpan = '1';
+
+    protected function getColumns(): int
+    {
+        return 2;
+    }
+
     protected function getStats(): array
     {
         $totalFoods = Food::query()->count();

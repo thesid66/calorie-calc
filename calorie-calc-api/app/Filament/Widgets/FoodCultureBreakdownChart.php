@@ -12,14 +12,19 @@ class FoodCultureBreakdownChart extends ChartWidget
 
     protected static ?int $sort = 6;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = '1';
 
-    protected ?string $maxHeight = '320px';
+    protected ?string $maxHeight = '240px';
 
-    public function getDescription(): ?string
-    {
-        return 'Breakdown of Nepali food coverage compared with the rest of the food database.';
-    }
+    protected ?array $options = [
+        'plugins' => [
+            'legend' => [
+                'position' => 'bottom',
+            ],
+        ],
+    ];
+
+
 
     protected function getData(): array
     {
