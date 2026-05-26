@@ -6,6 +6,8 @@ use App\Filament\Resources\Foods\Pages\CreateFood;
 use App\Filament\Resources\Foods\Pages\EditFood;
 use App\Filament\Resources\Foods\Pages\ListFoods;
 use App\Filament\Resources\Foods\Pages\ViewFood;
+use App\Filament\Resources\Foods\RelationManagers\AliasesRelationManager;
+use App\Filament\Resources\Foods\RelationManagers\ServingsRelationManager;
 use App\Filament\Resources\Foods\Schemas\FoodForm;
 use App\Filament\Resources\Foods\Schemas\FoodInfolist;
 use App\Filament\Resources\Foods\Tables\FoodsTable;
@@ -49,7 +51,8 @@ class FoodResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ServingsRelationManager::class,
+            AliasesRelationManager::class,
         ];
     }
 
