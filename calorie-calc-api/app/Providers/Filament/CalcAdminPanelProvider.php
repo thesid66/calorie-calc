@@ -27,6 +27,8 @@ class CalcAdminPanelProvider extends PanelProvider
             ->default()
             ->id('calc-admin')
             ->path('calc-admin')
+            ->sidebarWidth('250px')
+            ->maxContentWidth('100%')
             ->login()
             ->colors([
                 'primary' => Color::Amber,
