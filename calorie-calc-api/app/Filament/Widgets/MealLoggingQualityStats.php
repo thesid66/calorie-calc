@@ -8,7 +8,7 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class MealLoggingQualityStats extends StatsOverviewWidget
 {
-    protected static ?int $sort = 4;
+    protected static ?int $sort = 8;
 
     protected function getStats(): array
     {

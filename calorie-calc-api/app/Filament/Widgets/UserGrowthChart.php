@@ -11,11 +11,16 @@ class UserGrowthChart extends ChartWidget
 {
     protected ?string $heading = 'User Growth';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     protected int|string|array $columnSpan = 'full';
 
     public ?string $filter = 'this_month';
+
+    public function getDescription(): ?string
+    {
+        return 'New user registrations over time, filterable by week, month, year, or all time.';
+    }
 
     protected function getFilters(): ?array
     {

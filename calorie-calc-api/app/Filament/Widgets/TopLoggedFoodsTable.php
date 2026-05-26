@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class TopLoggedFoodsTable extends TableWidget
 {
-    protected static ?int $sort = 5;
+    protected static ?int $sort = 11;
 
     protected int|string|array $columnSpan = 'full';
 
